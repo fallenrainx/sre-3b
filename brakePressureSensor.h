@@ -31,7 +31,7 @@ typedef struct _BrakePressureSensor
     ubyte4 timestamp_calibrationStart;
     ubyte1 calibrationRunTime;
 
-    bool calibrated;
+    bool calibrated; //BrakePressureSensor_resetCalibration() function will turn this off to reset, then turn on again
     float4 percent;
 	bool implausibility;
 	ubyte1 brakePercentage;

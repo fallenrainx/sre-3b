@@ -15,13 +15,15 @@
 * If an implausibility occurs between the values of these two sensors the power to the motor(s) must be immediately shut down completely.
 * It is not necessary to completely deactivate the tractive system, the motor controller(s) shutting down the power to the motor(s) is sufficient.
 ****************************************************************************/
-BrakePressureSensor* BrakePressureSensor_new(void)
+BrakePressureSensor* BrakePressureSensor_new(void) //function create a ptr to new BPS struct
 {
-    BrakePressureSensor* me = (BrakePressureSensor*)malloc(sizeof(struct _BrakePressureSensor));
+    BrakePressureSensor* me = (BrakePressureSensor*)malloc(sizeof(struct _BrakePressureSensor)); 
+    //create a ptr called me, allocate the size of a struct to what it points to
+	
     //me->bench = benchMode;
 
     //TODO: Make sure the main loop is running before doing this
-    me->bps0 = &Sensor_BPS0;
+    me->bps0 = &Sensor_BPS0; //??? SENSOR_BPSO is the type "Sensor" but it was commented out above 
     //me->tps1 = (benchMode == TRUE) ? &Sensor_BenchTPS1 : &Sensor_TPS1;
 
 	//Note: BPS sits slightly below 0.5V but it's still within range
@@ -72,7 +74,7 @@ void BrakePressureSensor_resetCalibration(BrakePressureSensor* me)
     //me->bps0_rawCalibMax = me->bps0->specMin;
     //me->bps0_calibMin = me->bps0->specMax;
 	//me->bps0_calibMax = me->bps0->specMin;
-	me->bps0_calibMin = 550;
+	me->bps0_calibMin = 550; //where are these two numbers coming from?
 	me->bps0_calibMax = 1250;
 
     //me->bps1_rawCalibMin = me->bps1->specMax;
@@ -128,6 +130,8 @@ void BrakePressureSensor_calibrationCycle(BrakePressureSensor* me, ubyte1* error
         if (IO_RTC_GetTimeUS(me->timestamp_calibrationStart) < (ubyte4)(me->calibrationRunTime) * 1000 * 1000)
         {
 			//The calibration itself
+		//self note: if the value sensed is less than calibMin, then update calibMin to the new minimum
+		//self note: if value sensed is more than calibMax, update calibMax to the new maximum
 			if (me->bps0->sensorValue < me->bps0_calibMin) { me->bps0_calibMin = me->bps0->sensorValue; }
 			if (me->bps0->sensorValue > me->bps0_calibMax) { me->bps0_calibMax = me->bps0->sensorValue; }
 
@@ -176,7 +180,7 @@ void BrakePressureSensor_getIndividualSensorPercent(BrakePressureSensor* me, uby
 	//ubyte2 calMin;
 	//ubyte2 calMax;
 
-	switch (sensorNumber)
+	switch (sensorNumber) //self note: 2 sensors, bps0 and bps1, but for some reason bps1 is disabled?
 	{
 	case 0:
 		*percent = me->bps0_percent;

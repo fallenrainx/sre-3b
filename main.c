@@ -117,7 +117,7 @@ void main(void)
 
     //Initialize serial first so we can use it to debug init of other subsystems
     SerialManager* serialMan = SerialManager_new();
-    IO_RTC_StartTime(&timestamp_startTime);
+    IO_RTC_StartTime(&timestamp_startTime); //start time is saved in timestamp_startTime
     SerialManager_send(serialMan, "\n\n\n\n\n\n\n\n\n\n----------------------------------------------------\n");
     SerialManager_send(serialMan, "VCU serial is online.\n");
 
@@ -134,21 +134,21 @@ void main(void)
     // Check if we're on the bench or not
     //----------------------------------------------------------------------------
     bool bench; 
-    IO_PWM_Init(IO_PWM_02, 50, TRUE, TRUE, IO_ADC_CUR_00, FALSE, NULL ); 
-    IO_RTC_StartTime(&timestamp_startTime);
+    IO_PWM_Init(IO_PWM_02, 50, TRUE, TRUE, IO_ADC_CUR_00, FALSE, NULL ); //??? why do we need to initiate pwm here to check bench mode?
+    IO_RTC_StartTime(&timestamp_startTime);  //??? why is there another starttime function? we just had one, that one doesnt need to be saved?
     while (IO_RTC_GetTimeUS(timestamp_startTime) < 55555)
     {
-        IO_Driver_TaskBegin();
+        IO_Driver_TaskBegin(); //??? task begin? Like RTOS? 
 
         //IO_DI (digital inputs) supposed to take 2 cycles before they return valid data
-        IO_DI_Get(IO_DI_06, &bench);
+        IO_DI_Get(IO_DI_06, &bench); //get the value of the digital input (high/low), and save that into the bool variable bench
 
         IO_Driver_TaskEnd();
         //TODO: Find out if EACH pin needs 2 cycles or just the entire DIO unit
-        while (IO_RTC_GetTimeUS(timestamp_startTime) < 10000);   // wait until 10ms have passed
+        while (IO_RTC_GetTimeUS(timestamp_startTime) < 10000);   // wait until 10ms have passed //10ms from the time of the timestamp_startTime
     }
-    IO_DI_DeInit(IO_DI_06);
-    IO_PWM_DeInit(IO_PWM_02);
+    IO_DI_DeInit(IO_DI_06); //deinitiate 
+    IO_PWM_DeInit(IO_PWM_02); //deinitiate pwm
 
     SerialManager_send(serialMan, bench == TRUE ? "VCU is in bench mode.\n" : "VCU is NOT in bench mode.\n");
     
@@ -158,7 +158,7 @@ void main(void)
     // objects instead, like the RTDS/MCM/TPS objects below
     //----------------------------------------------------------------------------
     SerialManager_send(serialMan, "VCU objects/subsystems initializing.\n");
-    vcu_initializeADC(bench);  //Configure and activate all I/O pins on the VCU
+    vcu_initializeADC(bench);  //Configure and activate all I/O pins on the VCU //this function is in initializations.c
     //vcu_initializeCAN();
     //vcu_initializeMCU();
 

@@ -1,0 +1,70 @@
+
+#ifndef CAN_DATA_STRUCTS_
+#define CAN_DATA_STRUCTS_
+
+typedef enum {
+	charger_on = 0,
+	disable_off = 1
+} charger_control;
+
+//data frame for message send from BMS
+typedef union
+	{
+		uint8_t dword[8];
+		struct
+		{		
+			//voltage (2 Bytes)
+			uint8_t voltage_to_charger_MSB: 8;
+			uint8_t voltage_to_charger_LSB: 8;
+			
+			//current (2 Bytes)
+			uint8_t current_to_charger_MSB: 8;
+			uint8_t current_to_charger_LSB: 8;
+			
+			//control byte
+			uint8_t control: 8; //0 = on, 1 = off
+			
+			//reserved 3 bytes at the end (byte 5 - 7)
+			uint8_t : 8;
+			uint8_t : 8;
+			uint8_t : 8;						
+		}__attribute__((packed));
+	}data_frame_BMS;	
+	
+//data frame for message from Charger
+typedef union
+	{
+		uint8_t dword[8];
+		struct
+		{
+			//voltage (2 Bytes)
+			uint8_t voltage_from_charger_MSB: 8;
+			uint8_t voltage_from_charger_LSB: 8;
+			
+			//current (2 Bytes)
+			uint8_t current_from_charger_MSB: 8;
+			uint8_t current_from_charger_LSB: 8;
+			
+			//status (1 byte)
+			union
+			{
+				uint8_t status_byte; //0 = on, 1 = off
+				struct 
+				{
+					uint8_t bit0 : 1;
+					uint8_t bit1 : 1;
+					uint8_t bit2 : 1;
+					uint8_t bit3 : 1;
+					uint8_t bit4 : 1;
+					uint8_t reserved : 3;
+				}__attribute__((packed));
+			}charger_status;
+			
+			//reserved 3 bytes at the end (byte 5 - 7)
+			uint8_t : 8;
+			uint8_t : 8;
+			uint8_t : 8;
+		}__attribute__((packed));
+	}data_frame_charger;
+
+#endif

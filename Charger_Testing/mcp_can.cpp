@@ -21,6 +21,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-
   1301  USA
 */
+
+/* Nuoya's note: changes are made in two different places:
+Line 1093, 1096 in sendmsgBuf()
+Line 1161 in readMsgBuf()
+*/
+
 #include "mcp_can.h"
 
 #define spi_readwrite SPI.transfer
@@ -1083,12 +1089,14 @@ INT8U MCP_CAN::sendMsgBuf(INT32U id, INT8U ext, INT8U len, INT8U *buf)
 *********************************************************************************************************/
 INT8U MCP_CAN::sendMsgBuf(INT32U id, INT8U len, INT8U *buf)
 {
-    INT8U ext = 0, rtr = 0; //hardcode rtr to 0
+    INT8U ext = 0, rtr = 0;
     INT8U res;
     
-    if((id & 0x10000000) == 0x10000000)
+    if((id & 0x10000000) == 0x10000000) //Nuoya: the original value was 0x80000000. This is 32bit and not 29th bit.
         ext = 1;
 
+	 /*if((id & 0x40000000) == 0x40000000) //Nuoya: hardcode rtr to 0 because we don't need remote frame. Data frame only
+        rtr = 1;*/
         
     setMsg(id, rtr, ext, len, buf);
     res = sendMsg();
@@ -1151,11 +1159,11 @@ INT8U MCP_CAN::readMsgBuf(INT32U *id, INT8U *len, INT8U buf[])
     if(readMsg() == CAN_NOMSG)
 	return CAN_NOMSG;
 
-    if (m_nExtFlg)
-        m_nID |= 0x80000000;
+    /*if (m_nExtFlg)
+        m_nID |= 0x80000000; */ //Modified by Nuoya: our address is 29bits, this is 32bits
 
     if (m_nRtr)
-        m_nID |= 0x40000000;
+        m_nID |= 0x40000000;  //m_nRtr will always be 0 because rtr was hardcoded to 0
 	
     *id  = m_nID;
     *len = m_nDlc;

@@ -19,8 +19,7 @@ void setup()
 
   CAN0.setMode(MCP_NORMAL);   // Change to normal mode to allow messages to be transmitted
 
-  //byte data[8] = {0x00, 0x32, 0x00, 0xA, 0x00, 0x00, 0x00, 0x00};
-  //BMS_to_charger_message_init(50, 10, charger_on, &CANmsg_send);
+  //initiate the message to the charger with: 5.0V, 1.0A, enable charger
   BMS_to_charger_message_init( 5.0, 1.0, charger_on, &CANmsg_send);
 }
 

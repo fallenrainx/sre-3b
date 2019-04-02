@@ -9,7 +9,7 @@
 
 
 //This struct contains messages send to charger
-typedef struct 
+typedef struct
 {
 	uint32_t message_id; //should be 0x1806E5F4 for the first charger
 	uint8_t data_length_byte; //should be 8
@@ -27,7 +27,7 @@ typedef struct
 
 void BMS_to_charger_message_init( float max_charging_voltage, float max_charging_current, charger_control ctrl, BMS_to_charger_CAN_message* msg);
 bool BMS_to_charger_message_send(MCP_CAN* can, BMS_to_charger_CAN_message* msg);
-void BMS_to_charger_message_receive(MCP_CAN* can, charger_to_BMS_CAN_message* msg);
+void charger_to_BMS_message_receive(MCP_CAN* can, charger_to_BMS_CAN_message* msg);
 void charger_to_BMS_data_parser(charger_to_BMS_CAN_message* msg);
 
 

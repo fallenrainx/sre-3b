@@ -37,7 +37,7 @@ uint8_t currentLSB = msg.data.current_from_charger_LSB;
 charger_output_current_A = ((currentMSB << 8) | currentLSB) * 0.1;
 
 //obtain status flag
-charger_flags = msg.data.charger_status.status_byte;
+charger_flags = msg.data.status_byte;
 }
 
 //BMS_singleton write to charger max voltage and current values
@@ -54,7 +54,7 @@ void BMS_singleton::disable_charger(CAN_manager_singleton& can_manager)
 }
 void BMS_singleton::enable_charger(CAN_manager_singleton& can_manager)
 {
-  can_manager.BMS_to_charger_disable_charger();
+  can_manager.BMS_to_charger_enable_charger();
 }
 
 float BMS_singleton::get_charger_output_voltage()

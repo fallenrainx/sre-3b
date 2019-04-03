@@ -28,7 +28,7 @@ class CAN_manager_singleton
 {
 public:
   static CAN_manager_singleton& getInstance();
-  bool CAN_manager_init_bus(MCP_CAN& CAN_BUS, int spd);
+  bool CAN_manager_init_bus(MCP_CAN& CAN_BUS, unsigned long spd);
   void BMS_to_charger_set_max_charging_parameters(float max_charging_voltage, float max_charging_current);
   void BMS_to_charger_disable_charger();
   void BMS_to_charger_enable_charger();
@@ -37,18 +37,14 @@ public:
   void charger_to_BMS_message_receive(MCP_CAN& CAN_BUS);
   BMS_to_charger_CAN_message& get_BMS_to_charger_CAN_message(); //access to private variable
   charger_to_BMS_CAN_message& get_charger_to_BMS_CAN_message(); //access to private variable
-	void set_data_ready_flag();
-	void clear_data_ready_flag();
-	bool is_data_ready(); //returns the data_ready flag
 
 private:
   static CAN_manager_singleton * instance;
   BMS_to_charger_CAN_message BmsToCharger_message;
   charger_to_BMS_CAN_message ChargerToBms_message;
-	bool data_ready; //variable needed for receving message through use of interrupt. ISR sets this flag, flag is cleared right after receiving msg
   CAN_manager_singleton();
 
-  int CAN_bus_speed;   //can only be 2 values: 500k or 1M
+  unsigned long CAN_bus_speed;   //can only be 2 values: 500k or 1M
 
 };
 

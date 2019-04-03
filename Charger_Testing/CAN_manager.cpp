@@ -22,20 +22,18 @@ CAN_manager_singleton::CAN_manager_singleton()
   ChargerToBms_message.message_id = 0; //clear message ID
 	ChargerToBms_message.data_length_byte = 0; //clear data length byte
 	ChargerToBms_message.data = {0}; //clear all data in the data frame
-
-  data_ready = false;
 }
 
-bool CAN_manager_singleton::CAN_manager_init_bus(MCP_CAN& CAN_BUS, int spd)
+bool CAN_manager_singleton::CAN_manager_init_bus(MCP_CAN& CAN_BUS, unsigned long spd)
 {
   CAN_bus_speed = spd;
-  bool is_initialization_successful = false;
-  if(CAN_bus_speed = 500000)
-    is_initialization_successful =  CAN_BUS.begin(MCP_ANY, CAN_500KBPS, MCP_16MHZ);
+  bool initialization_failed = true;
+  if(CAN_bus_speed == 500000)
+    initialization_failed =  CAN_BUS.begin(MCP_ANY, CAN_500KBPS, MCP_16MHZ);
   else
-    is_initialization_successful =  CAN_BUS.begin(MCP_ANY, CAN_1000KBPS, MCP_16MHZ);
+    initialization_failed =  CAN_BUS.begin(MCP_ANY, CAN_1000KBPS, MCP_16MHZ);
 CAN_BUS.setMode(MCP_NORMAL);
-return is_initialization_successful;
+return initialization_failed;
 }
 
 void CAN_manager_singleton::set_CAN_bus_speed(int spd)
@@ -69,10 +67,9 @@ return CAN_BUS.sendMsgBuf(BmsToCharger_message.message_id, BmsToCharger_message.
 
 void CAN_manager_singleton::charger_to_BMS_message_receive(MCP_CAN& CAN_BUS)
 {
-  if (data_ready)
+  if (CAN_BUS.checkReceive()) //if the data is available
   {
     CAN_BUS.readMsgBuf(&(ChargerToBms_message.message_id), &(ChargerToBms_message.data_length_byte), ChargerToBms_message.data.dword);
-    data_ready = false;
   }
 }
 
@@ -84,18 +81,4 @@ BMS_to_charger_CAN_message& CAN_manager_singleton::get_BMS_to_charger_CAN_messag
 charger_to_BMS_CAN_message& CAN_manager_singleton::get_charger_to_BMS_CAN_message()
 {
   return ChargerToBms_message;
-}
-
-void CAN_manager_singleton::set_data_ready_flag()
-{
-  data_ready = true;
-}
-void CAN_manager_singleton::clear_data_ready_flag()
-{
-  data_ready = false;
-}
-
-bool CAN_manager_singleton::is_data_ready()
-{
-  return data_ready;
 }

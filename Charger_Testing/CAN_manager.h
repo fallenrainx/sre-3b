@@ -33,7 +33,7 @@ public:
   void BMS_to_charger_disable_charger();
   void BMS_to_charger_enable_charger();
   void set_CAN_bus_speed(int spd);
-  bool BMS_to_charger_message_send(MCP_CAN& CAN_BUS);
+  bool BMS_to_charger_message_send(MCP_CAN& CAN_BUS); //returns 0 if message is successfully sent
   void charger_to_BMS_message_receive(MCP_CAN& CAN_BUS);
   BMS_to_charger_CAN_message& get_BMS_to_charger_CAN_message(); //access to private variable
   charger_to_BMS_CAN_message& get_charger_to_BMS_CAN_message(); //access to private variable

@@ -2,11 +2,6 @@
 #ifndef CAN_DATA_STRUCTS_
 #define CAN_DATA_STRUCTS_
 
-typedef enum {
-	charger_on = 0,
-	disable_off = 1
-} charger_control;
-
 //data frame for message send from BMS
 typedef union
 	{

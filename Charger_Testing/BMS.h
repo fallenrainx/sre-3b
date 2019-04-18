@@ -6,15 +6,6 @@
 #include "CAN_manager.h"
 #include "BMS_dataTypes.h"
 
-#include <Arduino.h>
-#include <stdint.h>
-#include "Linduino.h"
-#include "LT_SPI.h"
-#include "UserInterface.h"
-#include "LTC681x.h"
-#include "LTC6811.h"
-#include <SPI.h>
-
 class BMS_singleton
 {
 public:
@@ -44,15 +35,16 @@ public:
   bool is_DC_voltage_in_range_charger_flag();
   bool is_communication_time_out_charger_flag();
 
-//battery state setting and getter
+  //battery state setting and getter
   void set_battery_state(battery_state state);
   battery_state get_battery_state();
 
   //member functions for 6811 battery monitor
-  void read_cell_groups_voltage();
-  void read_cell_groups_temp();
-  float get_individual_cell_group_voltage(int module_number, int cell_group_number);
-  float get_individual_cell_group_temp(int module_number, int cell_group_number);
+  void read_all_cell_groups_voltage();
+  void read_all_cell_groups_temp();
+  void read_cell_groups_temp(int cell_group_number); //reads temperature of only one cell group. group number starts with 0 to 8
+  float get_individual_cell_group_voltage(int module_number, int cell_group_number); //number start @ 0
+  float get_individual_cell_group_temp(int module_number, int cell_group_number); //number start @ 0
   void print_all_cell_groups_voltage_and_temp();
 
   /*this function should parse through all cell group voltages and flag
@@ -61,8 +53,9 @@ public:
   cell group hits 4.2V. This function should also parse through all cell group temperatures and flag
   ones with temperature equal or exceeding the temperature threshold stated.
   charging/discharging will stop once the flag is set */
-
   void monitor_all_cell_groups_voltage_and_temp(CAN_manager_singleton& CAN_manager);
+
+  cell_asic bms_ic[TOTAL_IC];
 
 private:
   // variables related to singleton object
@@ -79,7 +72,10 @@ private:
 
   //6811 battery monitor-related member variables
   cell_group battery_monitor[8][9]; //8 modules, with 9 cell groups in each module
-  cell_asic bms_ic[TOTAL_IC]; //this is official LT data struct that works with the 6811 code. Needed here for its APIs
+
+  ///function that converts COMM reading to actual temp in degree C
+  //This function is taken from BMS_temp.h, by Alex and Tim
+  float temp_conversion(uint16_t comm_reading);
 };
 
 #endif

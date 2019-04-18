@@ -4,6 +4,14 @@
 #ifndef BMS_DATATYPES_H_
 #define BMS_DATATYPES_H_
 
+#include <stdint.h>
+#include "Linduino.h"
+#include "LT_SPI.h"
+//#include "UserInterface.h"
+//#include "LTC681x.h"
+#include "LTC6811.h"
+//#include <SPI.h>
+
 //Individual cell specifications (from Hg2 data sheet)
 #define CELL_OVER_VOLTAGE_THRESHOLD_V 4.1
 #define CELL_ABSOLUTE_MAXIMUM_VOLTAGE_V 4.2
@@ -11,16 +19,39 @@
 #define CELL_OVER_TEMP_THRESHOLD_DISCHARGE_C 75
 #define CELL_STANDARD_CHARGE_CONST_CURRENT_MA 1500
 #define CELL_STANDARD_CHARGE_CONST_VOLTAGE_V 4.2
-#define CELL_STANDARD_CHARGE_END_CURRENT_MA 50
 
 //self-defined variables for 6811 Inc
 #define TOTAL_CELL_GROUP 9 //9 cell group/module
+#define ENABLED 1
+ #define DISABLED 0
+ #define DATALOG_ENABLED 1
+ #define DATALOG_DISABLED 0
+ #define TEMP_SENSORS_BASE_ADDRESS 20 //decimal(20).  0x14(hex),  0010100(binary), according to Alex
 
 //setup variables and constants needed for the linduino 6811 APIs, created by LT
-const uint8_t TOTAL_IC = 8;//!<number of ICs in the daisy chain, 8 in our case
-const uint8_t ADC_CONVERSION_MODE = MD_7KHZ_3KHZ;//MD_7KHZ_3KHZ;
-const uint8_t CELL_CH_TO_CONVERT = CELL_CH_ALL; // See LTC6811_daisy.h for Options//MD_26HZ_2KHZ;//MD_7KHZ_3KHZ; // See LTC6811_daisy.h for Options
+const uint8_t TOTAL_IC = 1;//!<number of ICs in the daisy chain, 8 in our case
+const uint8_t ADC_CONVERSION_MODE = MD_7KHZ_3KHZ;//MD_7KHZ_3KHZ;//MD_26HZ_2KHZ;//MD_7KHZ_3KHZ; // See LTC6811_daisy.h for Options
 const uint8_t ADC_DCP = DCP_DISABLED; // See LTC6811_daisy.h for Options
+const uint8_t CELL_CH_TO_CONVERT = CELL_CH_ALL; // See LTC6811_daisy.h for Options
+ const uint8_t AUX_CH_TO_CONVERT = AUX_CH_ALL; // See LTC6811_daisy.h for Options
+ /*const uint8_t STAT_CH_TO_CONVERT = STAT_CH_ALL; // See LTC6811_daisy.h for Options
+ const uint16_t MEASUREMENT_LOOP_TIME = 500;//milliseconds(mS)
+ const uint16_t OV_THRESHOLD = 41000; // Over voltage threshold ADC Code. LSB = 0.0001
+ const uint16_t UV_THRESHOLD = 30000; // Under voltage threshold ADC Code. LSB = 0.0001
+ const uint8_t WRITE_CONFIG = DISABLED; // This is ENABLED or DISABLED
+const uint8_t READ_CONFIG = DISABLED; // This is ENABLED or DISABLED
+const uint8_t MEASURE_CELL = ENABLED; // This is ENABLED or DISABLED
+const uint8_t PRINT_PEC = DISABLED; //This is ENABLED or DISABLED*/
+
+//the variables below are for temperature conversion, by Alex and Tim
+ // Nominal thermistor
+#define THERMISTOR_NOMINAL 10000
+// Temp for nominal resistor (25 C)
+#define TEMP_NOMINAL 25
+// Beta coefficient of thermistor (3000 - 4000)
+#define BETA_COEFFICIENT 3950
+// 10kOhm resistor
+#define SERIES_RESISTOR 10000
 
 //This struct contains the voltage information and over-voltage flag for each cell group
 typedef struct
@@ -36,7 +67,44 @@ typedef struct
 typedef enum
 {
 	discharging = 0, //this means battery is in the car, not charging
-	charging = 1 //this means battery is off the car for charging
+	charging = 1, //this means battery is off the car for charging
+  regening = 2
 }battery_state;
+
+//The below structs are done by Alex and tim for their BMS_temp.h. I am merely borrowing it
+union COMM_WR_REG {
+    uint8_t bytes[6];
+    // Bit fields of Write register
+    struct COMM {
+        uint8_t ICOM0   : 4;
+        uint8_t D0      : 8;
+        uint8_t FCOM0   : 4;
+        uint8_t ICOM1   : 4;
+        uint8_t D1      : 8;
+        uint8_t FCOM1   : 4;
+        uint8_t ICOM2   : 4;
+        uint8_t D2      : 8;
+        uint8_t FCOM2   : 4;
+        // uint16_t PEC    : 16;
+    } fields;
+};
+
+union COMM_RD_REG {
+    uint8_t bytes[8];
+    // Bit fields of Read register
+    struct COMM {
+        uint8_t ICOM0   : 4;
+        uint8_t D0      : 8;
+        uint8_t FCOM0   : 4;
+        uint8_t ICOM1   : 4;
+        uint8_t D1      : 8;
+        uint8_t FCOM1   : 4;
+        uint8_t ICOM2   : 4;
+        uint8_t D2      : 8;
+        uint8_t FCOM2   : 4;
+        uint16_t PEC    : 16;
+    } fields;
+};
+
 
 #endif

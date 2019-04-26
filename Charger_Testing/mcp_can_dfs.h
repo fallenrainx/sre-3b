@@ -59,6 +59,9 @@
 #define MCP_RXB_RX_MASK     0x60
 #define MCP_RXB_BUKT_MASK   (1<<2)
 
+//define a constant to use for the SPI speed
+#define SPI_SPD 500000
+
 /*
 ** Bits in the TXBnCTRL registers.
 */

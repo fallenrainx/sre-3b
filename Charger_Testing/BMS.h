@@ -26,13 +26,15 @@ public:
   void enable_charger(CAN_manager_singleton& CAN_manager);
   float get_charger_output_voltage();
   float get_charger_output_current();
+  float get_BMS_command_voltage();
+  float get_BMS_command_current();
 
   //member functions allowing the charger flags to be obtained
   uint8_t get_charger_flags();
   bool is_hardware_failed_charger_flag();
   bool is_over_temperature_charger_flag();
-  bool is_AC_voltage_in_range_charger_flag();
-  bool is_DC_voltage_in_range_charger_flag();
+  bool is_input_voltage_wrong_charger_flag();
+  bool is_battery_voltage_detected_charger_flag();
   bool is_communication_time_out_charger_flag();
 
   //battery state setting and getter

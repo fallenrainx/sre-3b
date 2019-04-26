@@ -7,10 +7,7 @@
 #include <stdint.h>
 #include "Linduino.h"
 #include "LT_SPI.h"
-//#include "UserInterface.h"
-//#include "LTC681x.h"
 #include "LTC6811.h"
-//#include <SPI.h>
 
 //Individual cell specifications (from Hg2 data sheet)
 #define CELL_OVER_VOLTAGE_THRESHOLD_V 4.1
@@ -30,18 +27,27 @@
 
 //setup variables and constants needed for the linduino 6811 APIs, created by LT
 const uint8_t TOTAL_IC = 1;//!<number of ICs in the daisy chain, 8 in our case
-const uint8_t ADC_CONVERSION_MODE = MD_7KHZ_3KHZ;//MD_7KHZ_3KHZ;//MD_26HZ_2KHZ;//MD_7KHZ_3KHZ; // See LTC6811_daisy.h for Options
+//ADC Command Configurations
+const uint8_t ADC_OPT = ADC_OPT_DISABLED; // See LTC6811_daisy.h for Options
+const uint8_t ADC_CONVERSION_MODE = MD_7KHZ_3KHZ;//MD_7KHZ_3KHZ; //MD_26HZ_2KHZ;//MD_7KHZ_3KHZ; // See LTC6811_daisy.h for Options
 const uint8_t ADC_DCP = DCP_DISABLED; // See LTC6811_daisy.h for Options
 const uint8_t CELL_CH_TO_CONVERT = CELL_CH_ALL; // See LTC6811_daisy.h for Options
- const uint8_t AUX_CH_TO_CONVERT = AUX_CH_ALL; // See LTC6811_daisy.h for Options
- /*const uint8_t STAT_CH_TO_CONVERT = STAT_CH_ALL; // See LTC6811_daisy.h for Options
- const uint16_t MEASUREMENT_LOOP_TIME = 500;//milliseconds(mS)
- const uint16_t OV_THRESHOLD = 41000; // Over voltage threshold ADC Code. LSB = 0.0001
- const uint16_t UV_THRESHOLD = 30000; // Under voltage threshold ADC Code. LSB = 0.0001
- const uint8_t WRITE_CONFIG = DISABLED; // This is ENABLED or DISABLED
+const uint8_t AUX_CH_TO_CONVERT = AUX_CH_ALL; // See LTC6811_daisy.h for Options
+const uint8_t STAT_CH_TO_CONVERT = STAT_CH_ALL; // See LTC6811_daisy.h for Options
+
+const uint16_t MEASUREMENT_LOOP_TIME = 500;//milliseconds(mS)
+
+//Under Voltage and Over Voltage Thresholds
+const uint16_t OV_THRESHOLD = 41000; // Over voltage threshold ADC Code. LSB = 0.0001
+const uint16_t UV_THRESHOLD = 30000; // Under voltage threshold ADC Code. LSB = 0.0001
+
+//Loop Measurement Setup These Variables are ENABLED or DISABLED Remember ALL CAPS
+const uint8_t WRITE_CONFIG = DISABLED; // This is ENABLED or DISABLED
 const uint8_t READ_CONFIG = DISABLED; // This is ENABLED or DISABLED
 const uint8_t MEASURE_CELL = ENABLED; // This is ENABLED or DISABLED
-const uint8_t PRINT_PEC = DISABLED; //This is ENABLED or DISABLED*/
+const uint8_t MEASURE_AUX = DISABLED; // This is ENABLED or DISABLED
+const uint8_t MEASURE_STAT = DISABLED; //This is ENABLED or DISABLED
+const uint8_t PRINT_PEC = DISABLED; //This is ENABLED or DISABLED
 
 //the variables below are for temperature conversion, by Alex and Tim
  // Nominal thermistor
@@ -86,7 +92,7 @@ union COMM_WR_REG {
         uint8_t D2      : 8;
         uint8_t FCOM2   : 4;
         // uint16_t PEC    : 16;
-    } fields;
+    } __attribute__((packed)) fields;
 };
 
 union COMM_RD_REG {
@@ -103,7 +109,7 @@ union COMM_RD_REG {
         uint8_t D2      : 8;
         uint8_t FCOM2   : 4;
         uint16_t PEC    : 16;
-    } fields;
+    } __attribute__((packed)) fields;
 };
 
 

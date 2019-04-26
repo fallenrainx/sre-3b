@@ -28,11 +28,11 @@ BMS_singleton::BMS_singleton()
 
   //write to configuration register for GPIO4 and GPIO5
   //stated in the data sheet that these two ports will have to set to 1 for i2c
-  for (int current_ic = 0 ; current_ic < TOTAL_IC; current_ic++)
+  /*for (int current_ic = 0 ; current_ic < TOTAL_IC; current_ic++)
   {
     bms_ic[current_ic].config.tx_data[0] |= 0xC0; //toggle gpio 4 and 5 to 1
   }
-  LTC6811_wrcfg(TOTAL_IC, bms_ic);
+  LTC6811_wrcfg(TOTAL_IC, bms_ic);*/
 }
 
 void BMS_singleton::read_from_charger(CAN_manager_singleton& can_manager)
@@ -79,6 +79,15 @@ float BMS_singleton::get_charger_output_current()
   return charger_output_current_A;
 }
 
+float BMS_singleton::get_BMS_command_voltage()
+{
+  return charger_max_voltage_V;
+}
+float BMS_singleton::get_BMS_command_current()
+{
+  return charger_max_current_A;
+}
+
 //returns all the flags in one 8 bit variable
 uint8_t BMS_singleton::get_charger_flags()
 {
@@ -96,12 +105,12 @@ bool BMS_singleton::is_over_temperature_charger_flag()
   return (charger_flags & (0x2));
 }
 
-bool BMS_singleton::is_AC_voltage_in_range_charger_flag()
+bool BMS_singleton::is_input_voltage_wrong_charger_flag()
 {
   return (charger_flags & (0x4));
 }
 
-bool BMS_singleton::is_DC_voltage_in_range_charger_flag()
+bool BMS_singleton::is_battery_voltage_detected_charger_flag()
 {
   return (charger_flags & (0x8));
 }
@@ -142,6 +151,7 @@ void BMS_singleton::read_all_cell_groups_voltage()
       }//for
     }//for
   }//else
+
 }
 
 //void BMS_singleton::read_cell_groups_temp(cell_asic (&bms_ic)[TOTAL_IC])
@@ -161,30 +171,63 @@ void BMS_singleton::read_cell_groups_temp(int cell_group_number)
     {
       uint8_t slave_address = ((TEMP_SENSORS_BASE_ADDRESS + cell_group_number) << 1) | 0x1; //decimal.  0x14(hex),  0010100(binary), according to Alex
       COMM_WR_REG reg;
-      reg.fields.ICOM0 = 0x6; 							// send start
+      /*reg.fields.ICOM0 = 0x6; 							// send start
       reg.fields.D0 = slave_address; 	// to adc channel addr
-      reg.fields.FCOM0 = 0x8; 							// send nack
+      reg.fields.FCOM0 = 0x8; 							// send nack //N. 0xf?
       reg.fields.ICOM1 = 0x0;  							// send blank
       reg.fields.D1 =    0x00; 							// send empty byte
       reg.fields.FCOM1 = 0x8;  							// send NACK+STOP
       reg.fields.ICOM2 = 0x0;  							// no send
       reg.fields.D2 =    0x00; 							// empty byte
       reg.fields.FCOM2 = 0x9;  							// send ack
-      memcpy(bms_ic[current_ic].com.tx_data, reg.bytes, 6);
+      */
 
-      Serial.println("sending wrcomm");
+      reg.fields.ICOM0 = 0x6; 							// send start
+      reg.fields.D0 = slave_address; 	// to adc channel addr
+      reg.fields.FCOM0 = 0x7; 							// send ack from slave
+      reg.fields.ICOM1 = 0x0;  							// send blank
+      reg.fields.D1 =    0xFF; 							// send empty byte
+      reg.fields.FCOM1 = 0x0;  							// master send ack
+      reg.fields.ICOM2 = 0x0;  							// send blank
+      reg.fields.D2 =    0xFF; 							// empty byte
+      reg.fields.FCOM2 = 0x9;  							// master send nack + stop
+    //  memcpy(bms_ic[current_ic].com.tx_data, reg.bytes, 6);
+
+    bms_ic[current_ic].com.tx_data[0] = 0x62;
+    bms_ic[current_ic].com.tx_data[1] = 0x97;
+    bms_ic[current_ic].com.tx_data[2] = 0x0f;
+    bms_ic[current_ic].com.tx_data[3] = 0xF0;
+    bms_ic[current_ic].com.tx_data[4] = 0x0F;
+    bms_ic[current_ic].com.tx_data[5] = 0xF9;
+
+      Serial.print(F("BYTES:"));
+      for(int i = 0; i < 6; i++)
+      {
+        Serial.println(bms_ic[current_ic].com.tx_data[i], HEX);
+      }
+      Serial.println("");
+      Serial.println(F("sending wrcomm"));
       LTC6811_wrcomm(TOTAL_IC, bms_ic);//writes to the comm registers
+      Serial.println(F("sending stcomm"));
       LTC6811_stcomm(); //shift comm bytes to the bus
+      Serial.println(F("sending rdcomm"));
       if(LTC6811_rdcomm(TOTAL_IC, bms_ic)) //read comm registers for temp values
       {
-        Serial.println("PEC for rdcomm does not match \n"); //returns -1 if PEC error, 0 if no error
+        Serial.println(F("PEC for rdcomm does not match \n")); //returns -1 if PEC error, 0 if no error
       }
 
       COMM_RD_REG rd_reg;   //obtain values from bms_ic array and store into battery_monitor arraay
 
       memcpy(rd_reg.bytes, bms_ic[current_ic].com.rx_data, 8);//load data from bms_ic
-      uint16_t comm_reading = (rd_reg.fields.D1 << 8) | (rd_reg.fields.D2); //cast data bytes to uint16
-
+      Serial.print(F("BYTES:"));
+      for(int i = 0; i < 6; i++)
+      {
+        Serial.print(rd_reg.bytes[i], HEX);
+      }
+      Serial.println("");
+      uint16_t comm_reading = (rd_reg.fields.D0 << 8) | (rd_reg.fields.D1); //cast data bytes to uint16
+      Serial.print(F("temp:"));
+      Serial.println(comm_reading);
       float cell_temp = temp_conversion(comm_reading);
       battery_monitor[current_ic][cell_group_number].cell_group_temp = cell_temp;
       Serial.print("module ");
@@ -224,12 +267,12 @@ void BMS_singleton::print_all_cell_groups_voltage_and_temp()
   for (int current_ic = 0 ; current_ic < TOTAL_IC; current_ic++)
   {
     Serial.print(F(" IC "));
-    Serial.print(current_ic+1,DEC);
+    Serial.print(current_ic,DEC);
     Serial.print(F(", "));
     for (int current_cell_group=0; current_cell_group<TOTAL_CELL_GROUP; current_cell_group++)
     {
       Serial.print(F(" C"));
-      Serial.print(current_cell_group+1,DEC);
+      Serial.print(current_cell_group,DEC);
       Serial.print(F(":"));
       Serial.print(battery_monitor[current_ic][current_cell_group].cell_group_voltage);
       Serial.print(F(","));

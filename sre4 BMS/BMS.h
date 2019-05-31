@@ -14,11 +14,22 @@ public:
   //standard traction pack message functions
 void send_stpm(CAN_manager_singleton& CAN_manager, MCP_CAN& CAN_BUS);
 
+//function to read from CAN bus.
+//at the moment only 2 messages are received - from PCANView to initiate BSPD testing
+//and values to toggle the DAC for BSPD testing
+void read_CAN_bus(CAN_manager_singleton& CAN_manager, MCP_CAN& CAN_BUS);
+void set_BSPD_testing_current(uint8_t buffer[8]);
+
   //BMS_singleton read from CAN_manager_singleton and store data in member variables
   //this is merely accessing charger information stored in CAN_manager_singleton object
   //it does not initiate new receiving of messages from charger,  which is controlled by
   //the CAN_manager_singleton object
   void read_from_charger(CAN_manager_singleton& CAN_manager);
+
+  //i2c functions
+  void write_to_i2c(uint8_t slave_address, uint8_t bytes_to_write, uint8_t value_to_write[8]);
+  void read_from_i2c(uint8_t slave_address, uint8_t byte_to_read, uint32_t& value_from_reading);
+  void write_repeat_read_i2c(uint8_t slave_address, uint8_t value_to_write, uint8_t byte_to_read, uint32_t& value_from_reading);
 
   //BMS_singleton write to CAN_manager_singleton for the purpose of sending new data to charger
   //this is merely updating member variables inside CAN_manager_singleton object

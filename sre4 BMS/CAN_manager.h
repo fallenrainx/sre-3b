@@ -7,6 +7,7 @@
 #include "MCP_CAN.h"
 #include "CAN_data_structs.h"
 #include "BMS_dataTypes.h"
+#include <Wire.h>
 
 //This struct contains messages send to charger
 typedef struct
@@ -36,7 +37,9 @@ class CAN_manager_singleton
 {
 public:
   static CAN_manager_singleton& getInstance();
-  bool CAN_manager_init_bus(MCP_CAN& CAN_BUS, message_type type);
+  bool CAN_manager_init_bus(MCP_CAN& CAN_BUS);
+
+	//charger related functions
   void BMS_to_charger_set_max_charging_parameters(float max_charging_voltage, float max_charging_current);
   void BMS_to_charger_disable_charger();
   void BMS_to_charger_enable_charger();
@@ -47,6 +50,9 @@ public:
 
 	//standard traction pack message send
 	bool BMS_to_car_message_send(MCP_CAN& CAN_BUS, standard_traction_pack_message& stpm); //return 0 if successful
+
+	//read messges on the CAN bus in standard format
+	void read_CAN_bus_std_format(MCP_CAN& CAN_BUS, uint32_t& msg_ID, uint8_t& msg_length, uint8_t buffer[8]);
 
 private:
   static CAN_manager_singleton * instance;

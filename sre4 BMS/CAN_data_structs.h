@@ -2,12 +2,6 @@
 #ifndef CAN_DATA_STRUCTS_
 #define CAN_DATA_STRUCTS_
 
-enum message_type
-{
-	standard = 0,
-	extended = 1
-};
-
 //data frame for message send from BMS
 typedef union
 	{

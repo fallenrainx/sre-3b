@@ -8,9 +8,15 @@
 #include "Linduino.h"
 #include "LT_SPI.h"
 #include "LTC6811.h"
+#include <Wire.h>
+
+//addresses for various ICs
+#define TEMP_SENSORS_BASE_ADDRESS 0x14 //decimal(20).  0x14(hex),  0010100(binary), according to Alex
+#define BSPD_DAC_5321_ADDRESS 0xC
+#define CURRENT_SENSOR_2946_ADDRESS 0xDE
 
 //Individual cell specifications (from Hg2 data sheet)
-#define CELL_OVER_VOLTAGE_THRESHOLD_V 4.1
+#define CELL_OVER_VOLTAGE_THRESHOLD_V 4.16
 #define CELL_ABSOLUTE_MAXIMUM_VOLTAGE_V 4.2
 #define CELL_OVER_TEMP_THRESHOLD_CHARGE_C 50
 #define CELL_OVER_TEMP_THRESHOLD_DISCHARGE_C 75
@@ -23,7 +29,6 @@
  #define DISABLED 0
  #define DATALOG_ENABLED 1
  #define DATALOG_DISABLED 0
- #define TEMP_SENSORS_BASE_ADDRESS 20 //decimal(20).  0x14(hex),  0010100(binary), according to Alex
 
 //setup variables and constants needed for the linduino 6811 APIs, created by LT
 const uint8_t TOTAL_IC = 1;//!<number of ICs in the daisy chain, 8 in our case
@@ -59,6 +64,10 @@ const uint8_t PRINT_PEC = DISABLED; //This is ENABLED or DISABLED
 // 10kOhm resistor
 #define SERIES_RESISTOR 10000
 
+// CAN Message IDs
+ #define BSPD_ON_OFF_MID 0x520
+ #define BSPD_SET_CURRENT_MID 0x521
+
 //This struct contains the voltage information and over-voltage flag for each cell group
 typedef struct
 {
@@ -74,7 +83,8 @@ typedef enum
 {
 	discharging = 0, //this means battery is in the car, not charging
 	charging = 1, //this means battery is off the car for charging
-  regening = 2
+  regening = 2, //this means the battery is being charged by the regen process
+  testing = 3 //this means the battery is in testing BPSD
 }battery_state;
 
 //The below structs are done by Alex and tim for their BMS_temp.h. I am merely borrowing it

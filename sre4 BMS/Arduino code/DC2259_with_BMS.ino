@@ -33,11 +33,11 @@ All rights reserved.
 
 #include "BMS.h"
 #include "CAN_manager.h"
-#define CAN_BUS_INT  2
 
 MCP_CAN CAN_BUS(9);
 CAN_manager_singleton &CAN_manager = CAN_manager_singleton::getInstance();
 BMS_singleton &BMS = BMS_singleton::getInstance();
+int loop_number = 0;
  
 void setup()
 {
@@ -53,31 +53,34 @@ void setup()
   BMS.write_to_charger(CAN_manager, 0, 0); //set charger max voltage and current to zero at first
   BMS.disable_charger(CAN_manager); //disable charger
   BMS.set_battery_state(charging); 
-  digitalWrite(9, HIGH);
 }
 
 void loop()
 {
     BMS.read_all_cell_groups_voltage();
-    //BMS.read_all_cell_groups_temp();
-    BMS.read_cell_groups_temp(0);
-    BMS.print_all_cell_groups_voltage_and_temp();
-   // BMS.monitor_all_cell_groups_voltage_and_temp(CAN_manager);
+    if(loop_number % 5 == 0)
+    {
+      BMS.read_all_cell_groups_temp();
+      //BMS.read_cell_groups_temp(0);
+    }
+
+    BMS.monitor_all_cell_groups_voltage_and_temp(CAN_manager);
     
   // send data on CAN bus
-  /*bool is_send_failed = CAN_manager.BMS_to_charger_message_send(CAN_BUS);
+  bool is_send_failed = CAN_manager.BMS_to_charger_message_send(CAN_BUS);
   if (is_send_failed == false) {
     Serial.println(F("Message Sent Successfully to the charger!"));
   } else {
     Serial.println(F("Error Sending Message..."));
   }
+  //CAN_manager.BMS_to_charger_message_send(CAN_BUS);
 
   //receive data from the charger if data is ready
   CAN_manager.charger_to_BMS_message_receive(CAN_BUS);
 
   //obtain values from can manager:
   BMS.read_from_charger(CAN_manager);
-  Serial.print(F("BMS to Charger voltage: "));
+  Serial.print(F("BMS to Charger voltage, current: "));
   Serial.println(BMS.get_BMS_command_voltage());
   Serial.print(F("BMS to Charger current: "));
   Serial.println(BMS.get_BMS_command_current());
@@ -102,8 +105,8 @@ void loop()
   if(BMS.is_communication_time_out_charger_flag())
   Serial.println(F("Communication Timed Out"));
   //Serial.println(BMS.get_charger_flags()); 
-  
- */
+
+ ++loop_number;
   delay(1000);
 }
 

@@ -24,21 +24,21 @@ BMS_singleton::BMS_singleton()
   stpm = {0};
 
   //set everything to zero at first
-  for (int current_ic = 0 ; current_ic < TOTAL_IC; current_ic++)
+  /*for (int current_ic = 0 ; current_ic < TOTAL_IC; current_ic++)
   {
     for (int current_cell= 0; current_cell < TOTAL_CELL_GROUP; current_cell++)
     {
       battery_monitor[current_ic][current_cell].cell_group_voltage = 0;
       battery_monitor[current_ic][current_cell].cell_group_temp = 0;
     }//for
-  }//for
+  }//for*/
 
   //functions needed for the 6811
   LTC681x_init_cfg(TOTAL_IC, bms_ic);
   LTC6811_reset_crc_count(TOTAL_IC,bms_ic);
   LTC6811_init_reg_limits(TOTAL_IC,bms_ic);
-  bool gpio_reg[5] = {1, 1, 1, 1, 1};
-  LTC681x_set_cfgr_gpio(TOTAL_IC,bms_ic,gpio_reg);
+  //bool gpio_reg[5] = {1, 1, 1, 1, 1};
+ // LTC681x_set_cfgr_gpio(TOTAL_IC,bms_ic,gpio_reg);
 }
 
 void BMS_singleton::send_stpm(CAN_manager_singleton& CAN_manager, MCP_CAN& CAN_BUS)
@@ -47,8 +47,8 @@ void BMS_singleton::send_stpm(CAN_manager_singleton& CAN_manager, MCP_CAN& CAN_B
   stpm.SoC = 20; //20%
   stpm.max_discharge_current = 42; //42A
   stpm.max_regen_current = 320.1; //320.1A
-  stpm.battery_temp = 35.5;
-  stpm.flag = 0x19; //0b0001_1001
+  //stpm.battery_temp = 35.5;
+  //stpm.flag = 0x19; //0b0001_1001
   CAN_manager.BMS_to_car_message_send(CAN_BUS, stpm);
 }
 
@@ -250,7 +250,6 @@ battery_state BMS_singleton::get_battery_state()
 //void BMS_singleton::read_cell_groups_voltage(cell_asic (&bms_ic)[TOTAL_IC])
 void BMS_singleton::read_all_cell_groups_voltage()
 {
-  Serial.println(F("entering read all voltage function"));
   wakeup_sleep(TOTAL_IC);
   LTC6811_adcv(ADC_CONVERSION_MODE,ADC_DCP,CELL_CH_TO_CONVERT); // Start Cell ADC Measurement
   LTC6811_pollAdc(); //this function will block operation until ADC completes
@@ -259,35 +258,74 @@ void BMS_singleton::read_all_cell_groups_voltage()
   Serial.println(F("A PEC error was detected in the received data"));
   else //if there is no error
   {
+    //reset all flag and total voltage
+    stpm.cell_voltage_reach_4_flag = 0;
+    stpm.battery_voltage_low_flag = 0;
+    stpm.cell_voltage_reach_4_16_flag = 0;
+    stpm.total_voltage = 0;
+    stpm.BMS_fault_flag = 0;
     //move the data from bms_ic into our BMS data struct
     for (int current_ic = 0 ; current_ic < TOTAL_IC; current_ic++)
     {
+      Serial.print(F(" IC "));
+      Serial.print(current_ic,DEC);
+      Serial.print(F(", "));
       for (int current_cell= 0; current_cell < TOTAL_CELL_GROUP; current_cell++)
       {
-        battery_monitor[current_ic][current_cell].cell_group_voltage = bms_ic[current_ic].cells.c_codes[current_cell]*0.0001;
-      }//for
-    }//for
-  }//else
+        float voltage_value =  bms_ic[current_ic].cells.c_codes[current_cell]*0.0001;
+        //if(voltage_value < 6.50)
+          //battery_monitor[current_ic][current_cell].cell_group_voltage = voltage_value;
+          stpm.total_voltage += voltage_value;
+          Serial.print(F(" Cell"));
+          Serial.print(current_cell,DEC);
+          Serial.print(F(" V:"));
+          //Serial.print(battery_monitor[current_ic][current_cell_group].cell_group_voltage);
+          Serial.print(voltage_value);
+          if(voltage_value >= CELL_OVER_VOLTAGE_THRESHOLD_V) //if the cell group voltage actually reached 4.16
+          {
+            stpm.cell_voltage_reach_4_16_flag = 1;
+            stpm.cell_voltage_reach_4_flag = 1;
+          }
 
+          else if (voltage_value >= CELL_ALMOST_FULL_VOLTAGE_V) //if any voltage >= 4v
+          {
+            stpm.cell_voltage_reach_4_flag = 1;
+          }
+          else if (voltage_value < CELL_UNDER_VOLTAGE_THRESHOLD_V)
+          {
+            stpm.battery_voltage_low_flag = 1;
+            stpm.BMS_fault_flag = 1;
+          }
+          else //if voltage hasn't reach the threshold yet
+          {
+            //everything fine
+          }
+      }//for
+      Serial.println();
+    }//for
+      Serial.println();
+  }//else
 }
 
 //void BMS_singleton::read_cell_groups_temp(cell_asic (&bms_ic)[TOTAL_IC])
 void BMS_singleton::read_all_cell_groups_temp()
 {
-  //TODO: read cell group temp
+  //reset temp flag
+  stpm.battery_temp_high_flag = 0;
   for (int current_cell = 0 ; current_cell < TOTAL_CELL_GROUP; current_cell++)
   {
+    Serial.print(F(" Cell "));
+    Serial.print(current_cell, DEC);
+    Serial.print(F(", "));
     read_cell_groups_temp(current_cell); //cell group starts @ 0
   }
+  Serial.println();
 }
 
 //read temperature of just one node in each IC
 void BMS_singleton::read_cell_groups_temp(int cell_group_number)
 {
-  Serial.println(F("entering read temp function"));
-    bool gpio_reg[5] = {1, 1, 1, 1, 1};
     wakeup_sleep(TOTAL_IC);
-    LTC681x_set_cfgr_gpio(TOTAL_IC,bms_ic,gpio_reg);
   uint8_t slave_address = ((TEMP_SENSORS_BASE_ADDRESS + cell_group_number) << 1) | 0x1; //decimal.  0x14(hex),  0010100(binary), according to Alex
   for (int current_ic= 0; current_ic < TOTAL_IC; current_ic++)
     {
@@ -298,12 +336,9 @@ void BMS_singleton::read_cell_groups_temp(int cell_group_number)
       {
         Serial.println(bms_ic[current_ic].com.tx_data[i], HEX);
       }
-      Serial.println(""); */
-      //Serial.println(F("sending WRCOMM"));
+      Serial.println("");*/
       LTC6811_wrcomm(TOTAL_IC, bms_ic);//writes to the comm registers
-      //Serial.println(F("sending STCOMM"));
       LTC6811_stcomm(); //shift comm bytes to the bus
-      //Serial.println(F("reading RDCOMM"));
       uint8_t pec_error = LTC6811_rdcomm(TOTAL_IC, bms_ic); //read comm registers for temp values
 
       /*for(int i = 0; i < 8; i++)
@@ -316,26 +351,33 @@ void BMS_singleton::read_cell_groups_temp(int cell_group_number)
       uint16_t comm_reading = (D1 << 8) | (D2);
 
       //the voltage below is just for debug. The actual sensor reading should be converted to temperature
-      Serial.print("comm_reading value: ");
-      Serial.println(comm_reading, HEX);
+      //Serial.print(F("comm_reading value: "));
+      //Serial.println(comm_reading, HEX);
       float voltage = comm_reading * 5.0 / 65535;
-      Serial.print("voltage read: ");
+      Serial.print(F("T: "));
       Serial.println(voltage);
 
       //temperature calculation
-      //float cell_temp = temp_conversion(comm_reading);
-      //battery_monitor[current_ic][cell_group_number].cell_group_temp = cell_temp;
-      /*Serial.print("module ");
-      Serial.print(current_ic);
-      Serial.print(" cell group ");
-      Serial.print(cell_group_number);
-      Serial.print(" temperature ");
-      Serial.println(cell_temp);*/
+      /*
+      if(cell_temp >= CELL_OVER_TEMP_THRESHOLD_CHARGE_C && current_state_of_battery == charging)
+      || (cell_temp >= CELL_OVER_TEMP_THRESHOLD_DISCHARGE_C && current_state_of_battery == discharging))
+      {
+        stpm.battery_temp_high_flag = 1;
+        //battery_monitor[current_ic][current_cell].over_temp_threshold_flag = true; //set over temp flag
+      }
+      else //if the cell group temp hasn't reach the threshold yet
+        battery_monitor[current_ic][current_cell].over_temp_threshold_flag = false; //clear over temp flag
+      */
     }//for current ic
 }
 
 float BMS_singleton::temp_conversion(uint16_t comm_reading)
 {
+  uint16_t THERMISTOR_NOMINAL = 10000;
+  uint8_t TEMP_NOMINAL = 25;
+  uint16_t BETA_COEFFICIENT = 3950;
+  uint16_t SERIES_RESISTOR = 10000;
+
   float resistance = SERIES_RESISTOR / (65535 / comm_reading - 1);
   float steinhart;
   steinhart = resistance / THERMISTOR_NOMINAL;     	// (R/Ro)
@@ -359,7 +401,7 @@ void BMS_singleton::temp_fill_COMM_reg(uint8_t current_ic, uint8_t slave_address
   bms_ic[current_ic].com.tx_data[5] = 0xf9;
 }
 
-float BMS_singleton::get_individual_cell_group_voltage(int module_number, int cell_group_number)
+/*float BMS_singleton::get_individual_cell_group_voltage(int module_number, int cell_group_number)
 {
   return battery_monitor[module_number][cell_group_number].cell_group_voltage;
 }
@@ -367,9 +409,9 @@ float BMS_singleton::get_individual_cell_group_voltage(int module_number, int ce
 float BMS_singleton::get_individual_cell_group_temp(int module_number, int cell_group_number)
 {
   return battery_monitor[module_number][cell_group_number].cell_group_temp;
-}
+}*/
 
-void BMS_singleton::print_all_cell_groups_voltage_and_temp()
+/*void BMS_singleton::print_all_cell_groups_voltage_and_temp()
 {
   for (int current_ic = 0 ; current_ic < TOTAL_IC; current_ic++)
   {
@@ -381,93 +423,55 @@ void BMS_singleton::print_all_cell_groups_voltage_and_temp()
       Serial.print(F(" Cell"));
       Serial.print(current_cell_group,DEC);
       Serial.print(F(" V:"));
-      Serial.print(battery_monitor[current_ic][current_cell_group].cell_group_voltage);
+      //Serial.print(battery_monitor[current_ic][current_cell_group].cell_group_voltage);
+      Serial.print(bms_ic[current_ic].cells.c_codes[current_cell]*0.0001);
       Serial.print(F(" T:"));
-      Serial.print(battery_monitor[current_ic][current_cell_group].cell_group_temp);
+      //Serial.print(battery_monitor[current_ic][current_cell_group].cell_group_temp);
       Serial.print(F(","));
     }
     Serial.println();
   }
   Serial.println();
-}
+}*/
 
 void BMS_singleton::monitor_all_cell_groups_voltage_and_temp(CAN_manager_singleton& CAN_manager)
 {
+  //2.6 low side cutoff for voltage. 4.167 - high side
   bool is_any_cell_group_battery_full = false;
   bool is_any_cell_group_over_threshold_voltage_4_16 = false;
   bool is_any_cell_group_over_threshold_temp = false;
   float total_voltage = 0;
 
-  //loop through the cell groups
-  for (int current_ic = 0 ; current_ic < TOTAL_IC; current_ic++)
-  {
-    for (int current_cell= 0; current_cell < TOTAL_CELL_GROUP; current_cell++)
-    {
-      //checking voltage
-      float current_voltage = battery_monitor[current_ic][current_cell].cell_group_voltage;
-      total_voltage += current_voltage; //add current voltage to total voltage
-      if(current_voltage >= CELL_ABSOLUTE_MAXIMUM_VOLTAGE_V) //if the cell group voltage actually reached 4.2
-      {
-        battery_monitor[current_ic][current_cell].cell_group_battery_full_flag = true; //set voltage full flag
-        battery_monitor[current_ic][current_cell].over_voltage_threshold_flag = true; //set overvoltage flag
-        is_any_cell_group_battery_full = true;
-      }
-
-      else if (current_voltage >= CELL_OVER_VOLTAGE_THRESHOLD_V) //if any voltage >= 4.1v
-      {
-        battery_monitor[current_ic][current_cell].cell_group_battery_full_flag = false; //clear voltage full flag
-        battery_monitor[current_ic][current_cell].over_voltage_threshold_flag = true; //set overvoltage flag
-        is_any_cell_group_over_threshold_voltage_4_16 = true;
-      }
-      else //if voltage hasn't reach the threshold yet
-      {
-        battery_monitor[current_ic][current_cell].over_voltage_threshold_flag = false; //clear overvoltage flag
-        battery_monitor[current_ic][current_cell].cell_group_battery_full_flag = false; //clear full flag
-      }
-
-      //checking temperature
-      //if the battery is in charging state and cell group temp > charging temp threshold, or if battery is in discharging state and temp over threshold
-      if((battery_monitor[current_ic][current_cell].cell_group_temp >= CELL_OVER_TEMP_THRESHOLD_CHARGE_C && current_state_of_battery == charging)
-      || (battery_monitor[current_ic][current_cell].cell_group_temp >= CELL_OVER_TEMP_THRESHOLD_DISCHARGE_C && current_state_of_battery == discharging))
-      {
-        is_any_cell_group_over_threshold_temp = true;
-        battery_monitor[current_ic][current_cell].over_temp_threshold_flag = true; //set over temp flag
-      }
-      else //if the cell group temp hasn't reach the threshold yet
-      battery_monitor[current_ic][current_cell].over_temp_threshold_flag = false; //clear over temp flag
-    }//inner for loop
-  }//outer for loop
-
   //after looping through all cells:
-  if (is_any_cell_group_battery_full == true || is_any_cell_group_over_threshold_temp == true) //if any cell_group reached 4.2 V or overheats while charging
+  if (stpm.cell_voltage_reach_4_16_flag || stpm.battery_temp_high_flag || stpm.total_voltage >299.52 ) //if any cell_group reached 4.2 V or overheats while charging
   {
     if(current_state_of_battery == charging)
     {
       write_to_charger(CAN_manager, 0, 0);//disable charger
       disable_charger(CAN_manager);//stop charging
-      Serial.println(F("Full battery or over temperature detected, charging is stopped..."));
+      Serial.println(F("Full cell or over temperature or total voltage achieved, charging is stopped..."));
     }
     else if (current_state_of_battery == discharging)
     {
       //need to do temp scheduling
-      Serial.println(F("Full battery or over temperature detected"));
+      //Serial.println(F("Full battery or over temperature detected"));
     }
   }
-  else if (is_any_cell_group_over_threshold_voltage_4_16 == true || total_voltage >299.52) //if any cell_group reached 4.1 V or total voltage reaches 299.52
+  else if (stpm.cell_voltage_reach_4_flag) //if any cell_group reached 4 V  288/72 = 4V
   {
     if(current_state_of_battery == charging)//if in charging state
     {
-      write_to_charger(CAN_manager, 0, 0);//disable charger
-      disable_charger(CAN_manager);
-      Serial.println(F("battery at threshold voltage detected. disable charger..."));
+      write_to_charger(CAN_manager, 299.7, 7.5);//get batteries to higher voltage
+      enable_charger(CAN_manager);
+      Serial.println(F("Cell at threshold voltage 4.0V detected. increase charger voltage to 299.7V"));
     }
   }
+  //else if voltage drop below 2.6v
   else //if there is no issue
   {
-      Serial.println(F("no battery over voltage threshold or over temperature detected, everything fine"));
+      Serial.println(F("No battery over voltage threshold or over temperature detected, everything fine"));
       if(current_state_of_battery == charging)
       {
-        Serial.println(F("charging at 288V and 7.5A"));
         write_to_charger(CAN_manager, 288, 7.5); //set charger max voltage and current: 299.5V, 7.5A
         enable_charger(CAN_manager); //enable charger
       }

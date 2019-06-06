@@ -94,13 +94,16 @@ bool CAN_manager_singleton::BMS_to_car_message_send(MCP_CAN& CAN_BUS, standard_t
   msg.data[4] = raw & 0xFF;
   msgs_send_successful |= CAN_BUS.sendMsgBuf(msg.message_id, msg.data_length_byte, msg.data);
 
-  //0x621 -battery temp, flags
+  //0x621 -battery temp, flags, total voltage
   msg.message_id = 0x621;
   msg.data_length_byte = 3;
   raw = stpm.battery_temp * 10;
   msg.data[0] = (raw >> 8) & 0xFF;
   msg.data[1] = (raw & 0xFF);
   msg.data[2] = stpm.flag;
+  raw = stpm.total_voltage * 10;
+  msg.data[3] = (raw >> 8) & 0xFF;
+  msg.data[4] = (raw & 0xFF);
   msgs_send_successful |= CAN_BUS.sendMsgBuf(msg.message_id, msg.data_length_byte, msg.data);
 
   return msgs_send_successful; //should be 0 if all msgs are send successfully

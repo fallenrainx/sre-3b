@@ -59,9 +59,9 @@ void set_BSPD_testing_current(uint8_t buffer[8]);
   void read_all_cell_groups_voltage();
   void read_all_cell_groups_temp();
   void read_cell_groups_temp(int cell_group_number); //reads temperature of only one cell group. group number starts with 0 to 8
-  float get_individual_cell_group_voltage(int module_number, int cell_group_number); //number start @ 0
-  float get_individual_cell_group_temp(int module_number, int cell_group_number); //number start @ 0
-  void print_all_cell_groups_voltage_and_temp();
+  //float get_individual_cell_group_voltage(int module_number, int cell_group_number); //number start @ 0
+  //float get_individual_cell_group_temp(int module_number, int cell_group_number); //number start @ 0
+  //void print_all_cell_groups_voltage_and_temp();
 
   /*this function should parse through all cell group voltages and flag
   ones with voltage at 4.1V. As soon as any cell group hits 4.1V,
@@ -87,7 +87,7 @@ private:
   battery_state current_state_of_battery; //either on the cart (charging) or in the car (discharging)
 
   //6811 battery monitor-related member variables
-  cell_group battery_monitor[8][9]; //8 modules, with 9 cell groups in each module
+//  cell_group battery_monitor[8][9]; //8 modules, with 9 cell groups in each module
 
   ///function that converts COMM reading to actual temp in degree C
   //This function is taken from BMS_temp.h, by Alex and Tim

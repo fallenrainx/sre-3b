@@ -12,6 +12,7 @@ public:
   static BMS_singleton& getInstance();
 
   //standard traction pack message functions
+  //this function calls the CAN_manager singleton class to send out the msg on the bus
 void send_stpm(CAN_manager_singleton& CAN_manager, MCP_CAN& CAN_BUS);
 
 //function to read from CAN bus.
@@ -29,6 +30,7 @@ void set_BSPD_testing_current(uint8_t buffer[8]);
   //i2c functions
   void write_to_i2c(uint8_t slave_address, uint8_t bytes_to_write, uint8_t value_to_write[8]);
   void read_from_i2c(uint8_t slave_address, uint8_t byte_to_read, uint32_t& value_from_reading);
+  //this function read at most 4 bytes of data in one transation. if more are needed, change the parameter type
   void write_repeat_read_i2c(uint8_t slave_address, uint8_t value_to_write, uint8_t byte_to_read, uint32_t& value_from_reading);
 
   //BMS_singleton write to CAN_manager_singleton for the purpose of sending new data to charger
@@ -70,6 +72,10 @@ void set_BSPD_testing_current(uint8_t buffer[8]);
   ones with temperature equal or exceeding the temperature threshold stated.
   charging/discharging will stop once the flag is set */
   void monitor_all_cell_groups_voltage_and_temp(CAN_manager_singleton& CAN_manager);
+
+  /* ltc2946 current monitor functions*/
+  void configure_ltc2946();
+  void read_current_sensor();
 
   cell_asic bms_ic[TOTAL_IC];
 

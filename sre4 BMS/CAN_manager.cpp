@@ -92,6 +92,10 @@ bool CAN_manager_singleton::BMS_to_car_message_send(MCP_CAN& CAN_BUS, standard_t
   raw = stpm.max_regen_current * 10;
   msg.data[3] = (raw >> 8) & 0xFF;
   msg.data[4] = raw & 0xFF;
+  uint32_t raw_32 = stpm.battery_power;
+  msg.data[5] = (raw_32 >> 16) & 0xFF;
+  msg.data[6] = (raw_32 >> 8) & 0xFF;
+  msg.data[7] = raw_32 & 0xFF;
   msgs_send_successful |= CAN_BUS.sendMsgBuf(msg.message_id, msg.data_length_byte, msg.data);
 
   //0x621 -battery temp, flags, total voltage
@@ -104,6 +108,9 @@ bool CAN_manager_singleton::BMS_to_car_message_send(MCP_CAN& CAN_BUS, standard_t
   raw = stpm.total_voltage * 10;
   msg.data[3] = (raw >> 8) & 0xFF;
   msg.data[4] = (raw & 0xFF);
+  raw = stpm.total_current * 10;
+  msg.data[5] = (raw >> 8) & 0xFF;
+  msg.data[6] = (raw & 0xFF);
   msgs_send_successful |= CAN_BUS.sendMsgBuf(msg.message_id, msg.data_length_byte, msg.data);
 
   return msgs_send_successful; //should be 0 if all msgs are send successfully

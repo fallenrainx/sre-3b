@@ -58,7 +58,7 @@ private:
   static CAN_manager_singleton * instance;
   BMS_to_charger_CAN_message BmsToCharger_message;
   charger_to_BMS_CAN_message ChargerToBms_message;
-//	BMS_standard_message bms_standard_msg;
+
   CAN_manager_singleton();
 };
 

@@ -49,10 +49,14 @@ void setup()
     Serial.println(F("MCP2515 Initialized Successfully!"));
   else
     Serial.println(F("Error Initializing MCP2515...")); 
-
+    delay(1000);
   BMS.write_to_charger(CAN_manager, 0, 0); //set charger max voltage and current to zero at first
   BMS.disable_charger(CAN_manager); //disable charger
   BMS.set_battery_state(charging); 
+
+  //setting configuration register for 6811. Somehow when this is inside the bms class it freezes the whole program
+  wakeup_sleep(TOTAL_IC);
+  LTC6811_wrcfg(TOTAL_IC,BMS.bms_ic);
 }
 
 void loop()
@@ -67,7 +71,7 @@ void loop()
     BMS.monitor_all_cell_groups_voltage_and_temp(CAN_manager);
     
   // send data on CAN bus
-  bool is_send_failed = CAN_manager.BMS_to_charger_message_send(CAN_BUS);
+  /*bool is_send_failed = CAN_manager.BMS_to_charger_message_send(CAN_BUS);
   if (is_send_failed == false) {
     Serial.println(F("Message Sent Successfully to the charger!"));
   } else {
@@ -104,7 +108,10 @@ void loop()
   
   if(BMS.is_communication_time_out_charger_flag())
   Serial.println(F("Communication Timed Out"));
-  //Serial.println(BMS.get_charger_flags()); 
+  //Serial.println(BMS.get_charger_flags()); */
+
+  //send Standard traction pack message onto the CAN bus
+  //BMS.send_stpm(CAN_manager, CAN_BUS);
 
  ++loop_number;
   delay(1000);

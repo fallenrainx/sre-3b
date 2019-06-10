@@ -15,6 +15,7 @@ static BMS_singleton& BMS_singleton::getInstance()
 
 BMS_singleton::BMS_singleton()
 {
+    Serial.println(F("right before wrcfg"));
   charger_max_voltage_V = 0; //voltage data send to charger
   charger_max_current_A = 0; //current data send to charger
   charger_output_voltage_V = 0; //voltage data received from charger
@@ -34,21 +35,22 @@ BMS_singleton::BMS_singleton()
   }//for*/
 
   //functions needed for the 6811
+  //change is made in LTC681x.h to change gpio 3 to pull_down enabled (for address translator)
   LTC681x_init_cfg(TOTAL_IC, bms_ic);
   LTC6811_reset_crc_count(TOTAL_IC,bms_ic);
   LTC6811_init_reg_limits(TOTAL_IC,bms_ic);
-  //bool gpio_reg[5] = {1, 1, 1, 1, 1};
- // LTC681x_set_cfgr_gpio(TOTAL_IC,bms_ic,gpio_reg);
+  //wakeup_sleep(TOTAL_IC);
+  //LTC6811_wrcfg(TOTAL_IC,bms_ic);
 }
 
 void BMS_singleton::send_stpm(CAN_manager_singleton& CAN_manager, MCP_CAN& CAN_BUS)
 {
-  //for debug purposes: set values for stpm. will be deleted once real values are available
+  /*for debug purposes: set values for stpm. will be deleted once real values are available
   stpm.SoC = 20; //20%
   stpm.max_discharge_current = 42; //42A
   stpm.max_regen_current = 320.1; //320.1A
   //stpm.battery_temp = 35.5;
-  //stpm.flag = 0x19; //0b0001_1001
+  //stpm.flag = 0x19; //0b0001_1001*/
   CAN_manager.BMS_to_car_message_send(CAN_BUS, stpm);
 }
 
@@ -106,13 +108,12 @@ void BMS_singleton::set_BSPD_testing_current(uint8_t buffer[8])
   temp_buffer[0] = (PDs << 4) | (DAC_mapped_voltage >> 8);
   temp_buffer[1] = DAC_mapped_voltage & 0xff; //8 least sig. bits
   write_to_i2c(BSPD_DAC_5321_ADDRESS, 2, temp_buffer);
-
 }
 
 void BMS_singleton::write_to_i2c(uint8_t slave_address, uint8_t bytes_to_write, uint8_t value_to_write[8])
 {
   //need Wire.begin();
-  Wire.beginTransmission(slave_address); // transmit to device #8
+  Wire.beginTransmission(slave_address); // transmit to device
   for(int i = 0; i < bytes_to_write; i++)
   {
     Wire.write(value_to_write[i]);              // sends one byte
@@ -123,7 +124,7 @@ void BMS_singleton::write_to_i2c(uint8_t slave_address, uint8_t bytes_to_write, 
 void BMS_singleton::read_from_i2c(uint8_t slave_address, uint8_t byte_to_read, uint32_t& value_from_reading)
 {
   //need Wire.begin();
-  Wire.requestFrom(slave_address, byte_to_read);    // request 6 bytes from slave device #8
+  Wire.requestFrom(slave_address, byte_to_read);    // request bytes
   while (Wire.available()) { // slave may send less than requested
     byte c = Wire.read(); // receive a byte as character
     value_from_reading = value_from_reading << 8;
@@ -140,7 +141,7 @@ void BMS_singleton::write_repeat_read_i2c(uint8_t slave_address, uint8_t value_t
   Wire.beginTransmission(slave_address);     // Slave addres
   Wire.write(value_to_write); //0x0 signifies default conversion rate of 60Hz
   Wire.endTransmission(false); // Sending data in a burst and doing a repeated start
-  Wire.requestFrom(slave_address, byte_to_read);   // Requesting 16-bit of data
+  Wire.requestFrom(slave_address, byte_to_read);   // Requesting 8-bit of data
   while(Wire.available())
   {
     byte c = Wire.read(); // receive a byte as character
@@ -149,6 +150,42 @@ void BMS_singleton::write_repeat_read_i2c(uint8_t slave_address, uint8_t value_t
     value_from_reading |= c;
   }
     Wire.endTransmission();    // stop transmitting
+}
+
+void BMS_singleton::configure_ltc2946()
+{
+  //CTRLA register
+  //TODO: what is ADIN with respect to? GND or INTVCC? GND is by default. <- assume this for now
+  //voltage selection? ->which one? Assume ADIN for now.
+  //channel configuration? assume 100 for now...
+  uint8_t temp_value_to_write[8] = {0};
+  temp_value_to_write[0] = 0x0; //CTRLA register address
+  temp_value_to_write[1] = B00010100; //value to write: 0b00010100
+  write_to_i2c(CURRENT_SENSOR_2946_ADDRESS, 2, temp_value_to_write);
+
+}
+void BMS_singleton::read_current_sensor()
+{
+  //read power register (3 bytes) (address 05h to 07h)
+  uint32_t power_value_MSB2 = 0;
+  uint32_t power_value_MSB1 = 0;
+  uint32_t power_value_LSB = 0;
+  write_repeat_read_i2c(CURRENT_SENSOR_2946_ADDRESS, 0x5, 1, power_value_MSB2);
+  write_repeat_read_i2c(CURRENT_SENSOR_2946_ADDRESS, 0x6, 1, power_value_MSB1);
+  write_repeat_read_i2c(CURRENT_SENSOR_2946_ADDRESS, 0x7, 1, power_value_LSB);
+  uint32_t power_value = ((power_value_MSB2 & 0xff) << 16) | ((power_value_MSB1 & 0xff) << 8) | (power_value_LSB & 0xff);
+  stpm.battery_power = power_value;
+
+  //read ADC vin register (2 bytes) (address 1Eh to 1Fh)
+  uint32_t vin_voltage_MSB = 0;
+  uint32_t vin_voltage_LSB = 0;
+  write_repeat_read_i2c(CURRENT_SENSOR_2946_ADDRESS, 0x1E, 1, vin_voltage_MSB);
+  write_repeat_read_i2c(CURRENT_SENSOR_2946_ADDRESS, 0x1F, 1, vin_voltage_LSB);
+  uint32_t vin_voltage = ((vin_voltage_MSB & 0xff) << 8) | (vin_voltage_LSB & 0xff);
+
+  //calculate current from power and voltage (I = P / V)
+  float current = power_value * 1.0 / vin_voltage;
+  stpm.total_current = current;
 }
 
 void BMS_singleton::read_from_charger(CAN_manager_singleton& CAN_manager)
@@ -291,7 +328,7 @@ void BMS_singleton::read_all_cell_groups_voltage()
           {
             stpm.cell_voltage_reach_4_flag = 1;
           }
-          else if (voltage_value < CELL_UNDER_VOLTAGE_THRESHOLD_V)
+          else if (voltage_value < CELL_UNDER_VOLTAGE_THRESHOLD_V && current_cell != 5) //5th cell is always 0
           {
             stpm.battery_voltage_low_flag = 1;
             stpm.BMS_fault_flag = 1;
@@ -304,6 +341,7 @@ void BMS_singleton::read_all_cell_groups_voltage()
       Serial.println();
     }//for
       Serial.println();
+      stpm.SoC = int ((stpm.total_voltage / TOTAL_BATTERY_VOLTAGE) * 100); //percentage in terms of int
   }//else
 }
 
@@ -312,7 +350,7 @@ void BMS_singleton::read_all_cell_groups_temp()
 {
   //reset temp flag
   stpm.battery_temp_high_flag = 0;
-  for (int current_cell = 0 ; current_cell < TOTAL_CELL_GROUP; current_cell++)
+  for (int current_cell = 0 ; current_cell < TOTAL_CELL_GROUP - 1; current_cell++) //only 9 ics in one module, so total_cell_group - 1
   {
     Serial.print(F(" Cell "));
     Serial.print(current_cell, DEC);
@@ -325,41 +363,44 @@ void BMS_singleton::read_all_cell_groups_temp()
 //read temperature of just one node in each IC
 void BMS_singleton::read_cell_groups_temp(int cell_group_number)
 {
-    wakeup_sleep(TOTAL_IC);
   uint8_t slave_address = ((TEMP_SENSORS_BASE_ADDRESS + cell_group_number) << 1) | 0x1; //decimal.  0x14(hex),  0010100(binary), according to Alex
   for (int current_ic= 0; current_ic < TOTAL_IC; current_ic++)
     {
       temp_fill_COMM_reg(current_ic, slave_address);
 
-    /*Serial.print(F("\nBYTES:"));
+    Serial.print(F("\nTX BYTES:\n"));
       for(int i = 0; i < 6; i++)
       {
         Serial.println(bms_ic[current_ic].com.tx_data[i], HEX);
       }
-      Serial.println("");*/
+      Serial.println("");
+      wakeup_sleep(TOTAL_IC);
       LTC6811_wrcomm(TOTAL_IC, bms_ic);//writes to the comm registers
       LTC6811_stcomm(); //shift comm bytes to the bus
       uint8_t pec_error = LTC6811_rdcomm(TOTAL_IC, bms_ic); //read comm registers for temp values
 
-      /*for(int i = 0; i < 8; i++)
+      for(int i = 0; i < 8; i++)
       {
         Serial.println(bms_ic[current_ic].com.rx_data[i], HEX);
-      }*/
+      }
       //extract data1 and data2 to construct reading from ltc2451
       uint8_t D1 = ((bms_ic[current_ic].com.rx_data[2] & 0xf) << 4) | (bms_ic[current_ic].com.rx_data[3] >> 4);
       uint8_t D2 = ((bms_ic[current_ic].com.rx_data[4] & 0xf) << 4) | (bms_ic[current_ic].com.rx_data[5] >> 4);
       uint16_t comm_reading = (D1 << 8) | (D2);
 
       //the voltage below is just for debug. The actual sensor reading should be converted to temperature
-      //Serial.print(F("comm_reading value: "));
-      //Serial.println(comm_reading, HEX);
       float voltage = comm_reading * 5.0 / 65535;
-      Serial.print(F("T: "));
-      Serial.println(voltage);
+      Serial.print(F("V/T: "));
+    //  Serial.println(voltage);
+    Serial.print(voltage);
+      delay(100);
 
       //temperature calculation
-      /*
-      if(cell_temp >= CELL_OVER_TEMP_THRESHOLD_CHARGE_C && current_state_of_battery == charging)
+
+      float temperature = temp_conversion(comm_reading);
+      Serial.print(F(" T: "));
+      Serial.println(temperature);
+    /*  if(cell_temp >= CELL_OVER_TEMP_THRESHOLD_CHARGE_C && current_state_of_battery == charging)
       || (cell_temp >= CELL_OVER_TEMP_THRESHOLD_DISCHARGE_C && current_state_of_battery == discharging))
       {
         stpm.battery_temp_high_flag = 1;
@@ -378,7 +419,7 @@ float BMS_singleton::temp_conversion(uint16_t comm_reading)
   uint16_t BETA_COEFFICIENT = 3950;
   uint16_t SERIES_RESISTOR = 10000;
 
-  float resistance = SERIES_RESISTOR / (65535 / comm_reading - 1);
+  float resistance = SERIES_RESISTOR * 1.0 / (65535 * 1.0 / comm_reading - 1);
   float steinhart;
   steinhart = resistance / THERMISTOR_NOMINAL;     	// (R/Ro)
   steinhart = log(steinhart);                  		// ln(R/Ro)
@@ -440,10 +481,9 @@ void BMS_singleton::monitor_all_cell_groups_voltage_and_temp(CAN_manager_singlet
   bool is_any_cell_group_battery_full = false;
   bool is_any_cell_group_over_threshold_voltage_4_16 = false;
   bool is_any_cell_group_over_threshold_temp = false;
-  float total_voltage = 0;
 
   //after looping through all cells:
-  if (stpm.cell_voltage_reach_4_16_flag || stpm.battery_temp_high_flag || stpm.total_voltage >299.52 ) //if any cell_group reached 4.2 V or overheats while charging
+  if (stpm.cell_voltage_reach_4_16_flag || stpm.battery_temp_high_flag || stpm.total_voltage > TOTAL_BATTERY_VOLTAGE) //if any cell_group reached 4.2 V or overheats while charging
   {
     if(current_state_of_battery == charging)
     {
@@ -461,18 +501,26 @@ void BMS_singleton::monitor_all_cell_groups_voltage_and_temp(CAN_manager_singlet
   {
     if(current_state_of_battery == charging)//if in charging state
     {
-      write_to_charger(CAN_manager, 299.7, 7.5);//get batteries to higher voltage
+      write_to_charger(CAN_manager, TOTAL_BATTERY_VOLTAGE, CHARGER_OUTPUT_CURRENT_SPEC);//get batteries to higher voltage
       enable_charger(CAN_manager);
       Serial.println(F("Cell at threshold voltage 4.0V detected. increase charger voltage to 299.7V"));
     }
   }
-  //else if voltage drop below 2.6v
+  else if (stpm.battery_voltage_low_flag || stpm.BMS_fault_flag)
+  {
+    if(current_state_of_battery == charging)
+    {
+      write_to_charger(CAN_manager, 0, 0);//disable charger
+      disable_charger(CAN_manager);//stop charging
+    }
+      Serial.println(F("battery voltage below 2.6 or BMS fault detected"));
+  }
   else //if there is no issue
   {
       Serial.println(F("No battery over voltage threshold or over temperature detected, everything fine"));
       if(current_state_of_battery == charging)
       {
-        write_to_charger(CAN_manager, 288, 7.5); //set charger max voltage and current: 299.5V, 7.5A
+        write_to_charger(CAN_manager, CHARGER_OUTPUT_VOLTAGE_SPEC, CHARGER_OUTPUT_CURRENT_SPEC); //set charger max voltage and current: 299.5V, 7.5A
         enable_charger(CAN_manager); //enable charger
       }
   }

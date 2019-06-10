@@ -22,16 +22,19 @@
 #define CELL_ALMOST_FULL_VOLTAGE_V 4.0
 #define CELL_OVER_TEMP_THRESHOLD_CHARGE_C 50
 #define CELL_OVER_TEMP_THRESHOLD_DISCHARGE_C 75
+#define TOTAL_BATTERY_VOLTAGE 299.7
+#define CHARGER_OUTPUT_CURRENT_SPEC 7.5
+#define CHARGER_OUTPUT_VOLTAGE_SPEC 288
 
 //self-defined variables for 6811 Inc
-#define TOTAL_CELL_GROUP 9 //9 cell group/module
+#define TOTAL_CELL_GROUP 10 //9 cell group/module, but 6th one is zero and 10th one is the one with battery
 #define ENABLED 1
 #define DISABLED 0
 //#define DATALOG_ENABLED 1
 //#define DATALOG_DISABLED 0
 
 //setup variables and constants needed for the linduino 6811 APIs, created by LT
-const uint8_t TOTAL_IC = 7;//!<number of ICs in the daisy chain, 8 in our case
+const uint8_t TOTAL_IC = 1;//!<number of ICs in the daisy chain, 8 in our case
 //ADC Command Configurations
 const uint8_t ADC_OPT = ADC_OPT_DISABLED; // See LTC6811_daisy.h for Options
 const uint8_t ADC_CONVERSION_MODE = MD_7KHZ_3KHZ;//MD_7KHZ_3KHZ; //MD_26HZ_2KHZ;//MD_7KHZ_3KHZ; // See LTC6811_daisy.h for Options
@@ -83,6 +86,7 @@ struct standard_traction_pack_message{
   uint8_t  SoC; //byte 0
   float  max_discharge_current; //byte 1 and 2
   float  max_regen_current; //byte 3 and 4
+  uint32_t battery_power; //byte 5 to 7
 
   //MID 621
   float battery_temp; //byte 0 and 1
@@ -100,6 +104,7 @@ struct standard_traction_pack_message{
       }__attribute__((packed));
   };
   float total_voltage; //byte 3 and 4
+  float total_current; //byte 5 and 6
 };
 
 #endif

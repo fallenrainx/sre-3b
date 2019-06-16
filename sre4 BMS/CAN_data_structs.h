@@ -2,6 +2,8 @@
 #ifndef CAN_DATA_STRUCTS_
 #define CAN_DATA_STRUCTS_
 
+#define CHARGER_ADDRESS 0x18FF50E5
+
 //data frame for message send from BMS
 typedef union
 	{

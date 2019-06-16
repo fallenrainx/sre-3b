@@ -18,6 +18,7 @@
 //Individual cell specifications (from Hg2 data sheet)
 #define CELL_OVER_VOLTAGE_THRESHOLD_V 4.16
 #define CELL_UNDER_VOLTAGE_THRESHOLD_V 2.6
+#define CELL_ABSOLUTE_MINIMUM_VOLTAGE_V 2.5
 #define CELL_ABSOLUTE_MAXIMUM_VOLTAGE_V 4.2
 #define CELL_ALMOST_FULL_VOLTAGE_V 4.0
 #define CELL_OVER_TEMP_THRESHOLD_CHARGE_C 50
@@ -77,7 +78,7 @@ typedef enum
 	discharging = 0, //this means battery is in the car, not charging
 	charging = 1, //this means battery is off the car for charging
   regening = 2, //this means the battery is being charged by the regen process
-  testing = 3 //this means the battery is in testing BPSD
+  testing = 3, //this means the battery is in testing BPSD
 }battery_state;
 
 //standard traction pack message for the VCU
@@ -90,21 +91,29 @@ struct standard_traction_pack_message{
 
   //MID 621
   float battery_temp; //byte 0 and 1
-  union { //byte 2
-    uint8_t flag;
+  union { //byte 2 and 3
+    uint16_t flag;
     struct {
-          byte battery_voltage_low_flag : 1;
-          byte battery_temp_high_flag : 1;
-          byte discharge_disabled_flag : 1;
-          byte recharge_disabled_flag : 1;
-          byte BMS_fault_flag : 1;
-          byte cell_voltage_reach_4_flag : 1;
-          byte cell_voltage_reach_4_16_flag : 1;
-          byte : 1;
+          byte cell_voltage_reach_4_flag : 1; //bit 0
+          byte cell_voltage_reach_4_16_flag : 1; //bit 1
+          byte cell_voltage_too_high_flag : 1; //bit 2
+          byte cell_voltage_too_low_flag : 1; //bit 3
+          byte cell_voltage_below_2_6_flag : 1; //bit 4
+          byte pack_voltage_high_flag : 1; //bit 5
+          byte pack_voltage_low_flag : 1; //bit 6
+          byte battery_temp_too_high_for_charging_flag : 1; //bit 7
+          byte battery_temp_too_high_for_discharging_flag : 1; //bit 8
+          byte discharge_disabled_flag : 1; //bit 9
+          byte recharge_disabled_flag : 1; //bit 10
+          byte BMS_fault_flag: 1; //bit 11
+          byte : 1; //bit 12
+          byte : 1; //bit 13
+          byte : 1; //bit 14
+          byte : 1; //bit 15
       }__attribute__((packed));
   };
-  float total_voltage; //byte 3 and 4
-  float total_current; //byte 5 and 6
+  float total_voltage; //byte 4 and 5
+  float total_current; //byte 6  and 7
 };
 
 #endif

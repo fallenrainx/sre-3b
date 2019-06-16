@@ -17,7 +17,6 @@ typedef struct
 	data_frame_BMS data;//data frame (8 bytes)
 }BMS_to_charger_CAN_message;
 
-
 //this struct contains messages from the charger
 typedef struct
 {

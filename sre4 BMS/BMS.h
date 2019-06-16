@@ -79,6 +79,9 @@ void set_BSPD_testing_current(uint8_t buffer[8]);
 
   cell_asic bms_ic[TOTAL_IC];
 
+  //standard traction pack message to communicate with the VCU
+  standard_traction_pack_message stpm; //how to initialize all to 0?
+
 private:
   // variables related to singleton object
   static BMS_singleton * instance;
@@ -99,9 +102,6 @@ private:
   //This function is taken from BMS_temp.h, by Alex and Tim
   float temp_conversion(uint16_t comm_reading);
   void temp_fill_COMM_reg(uint8_t current_ic, uint8_t slave_address);
-
-  //standard traction pack message to communicate with the VCU
-  standard_traction_pack_message stpm; //how to initialize all to 0?
 };
 
 #endif

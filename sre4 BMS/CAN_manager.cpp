@@ -84,7 +84,7 @@ bool CAN_manager_singleton::BMS_to_car_message_send(MCP_CAN& CAN_BUS, standard_t
 
   //0x620 -soc, max discharge and regen currents
   msg.message_id = 0x620;
-  msg.data_length_byte = 5;
+  msg.data_length_byte = 8;
   msg.data[0] = stpm.SoC;
   raw = stpm.max_discharge_current * 10;
   msg.data[1] = (raw >> 8) & 0xFF;
@@ -100,17 +100,18 @@ bool CAN_manager_singleton::BMS_to_car_message_send(MCP_CAN& CAN_BUS, standard_t
 
   //0x621 -battery temp, flags, total voltage
   msg.message_id = 0x621;
-  msg.data_length_byte = 3;
+  msg.data_length_byte = 7;
   raw = stpm.battery_temp * 10;
   msg.data[0] = (raw >> 8) & 0xFF;
   msg.data[1] = (raw & 0xFF);
-  msg.data[2] = stpm.flag;
+  msg.data[2] = stpm.flag >> 8 & 0xFF;
+  msg.data[3] = stpm.flag & (0xFF);
   raw = stpm.total_voltage * 10;
-  msg.data[3] = (raw >> 8) & 0xFF;
-  msg.data[4] = (raw & 0xFF);
+  msg.data[4] = (raw >> 8) & 0xFF;
+  msg.data[5] = (raw & 0xFF);
   raw = stpm.total_current * 10;
-  msg.data[5] = (raw >> 8) & 0xFF;
-  msg.data[6] = (raw & 0xFF);
+  msg.data[6] = (raw >> 8) & 0xFF;
+  msg.data[7] = (raw & 0xFF);
   msgs_send_successful |= CAN_BUS.sendMsgBuf(msg.message_id, msg.data_length_byte, msg.data);
 
   return msgs_send_successful; //should be 0 if all msgs are send successfully
@@ -119,7 +120,7 @@ bool CAN_manager_singleton::BMS_to_car_message_send(MCP_CAN& CAN_BUS, standard_t
 //at the moment only 2 messages are received - from PCANView to initiate BSPD testing
 //and values to toggle the DAC for BSPD testing
 //TODO: setting up pcan message ID and message to send
-void read_CAN_bus_std_format(MCP_CAN& CAN_BUS, uint32_t& msg_ID, uint8_t& msg_length, uint8_t buffer[8])
+void CAN_manager_singleton::read_CAN_bus_std_format(MCP_CAN& CAN_BUS, uint32_t& msg_ID, uint8_t& msg_length, uint8_t buffer[8])
 {
   if (CAN_BUS.checkReceive()) //if the data is available
   {

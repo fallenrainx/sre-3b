@@ -34,7 +34,7 @@
 #include "BMS.h"
 #include "CAN_manager.h"
 
-MCP_CAN CAN_BUS(9);
+MCP_CAN CAN_BUS(CAN_TRANSCEIVER_PIN);
 CAN_manager_singleton &CAN_manager = CAN_manager_singleton::getInstance();
 BMS_singleton &BMS = BMS_singleton::getInstance();
 int loop_number = 0;
@@ -65,16 +65,23 @@ void loop()
   Serial.println(BMS.get_battery_state()); 
   
   bool is_send_failed = 0;
-  //read the CAN bus to see if any command for BPSD is send
+  //read the CAN bus to activate various states in the switch statement below
   BMS.read_CAN_bus(CAN_manager, CAN_BUS);
 
-  //read temp and voltage of the battery cells
+  //read temp, voltage, and current of the battery cells
   BMS.read_all_cell_groups_voltage();
+  BMS.read_current_sensor();
   if (loop_number % 5 == 0) //read temp every 5th loop
   {
     BMS.read_all_cell_groups_temp();
   }
+   if(BMS.stpm.BMS_fault_flag) //if BMS has a fault
+  {
+    //digitalWrite(BMS_FAULT_PIN, HIGH/LOW); //TODO: active low or high?
+    BMS.set_battery_state(idle); //if fault occurs, do not do anything anymore
+  }
 
+  //The big FSM to control actions
   switch (BMS.get_battery_state())
   {
     case testing: //state to test BSPD
@@ -83,6 +90,20 @@ void loop()
       break;
 
     case discharging:
+      //calculate allowable current based on current state of battery
+      if(BMS.stpm.cell_voltage_below_2_6_flag) //if voltage falls below 2.6V
+      {
+        //TODO: allow smaller amount of current here?
+      }
+      else if(BMS.stpm.battery_temp_too_high_for_discharging_flag) //if battery temp reaches beyong the spec temp
+      {
+        //TODO: do something here to lower current draw?
+      }
+      else
+      {
+        //TODO: allow max current draw?
+      }
+      //state switching is taken care of in the BMS.read_current_sensor() function, when current is read.
       break;
 
     case charging:
@@ -152,13 +173,38 @@ void loop()
       break;
 
     case regening:
+    //calculate allowable regen current based on current state of battery
+      if(BMS.stpm.cell_voltage_reach_4_flag) //if voltage of any particular cell is above 4V
+      {
+        //TODO: allow smaller amount of current here?
+      }
+      else if (BMS.stpm.cell_voltage_reach_4_16_flag) //if voltage of any particular cell is above 4.16V
+      {
+        //TODO: allow smaller amount of current here?
+      }
+      else if(BMS.stpm.battery_temp_too_high_for_charging_flag) //if battery temp reaches beyong the spec temp
+      {
+        //TODO: do something here to lower current draw?
+      }
+      else
+      {
+        //TODO: allow max current regen?
+      }
+    //state switching is taken care of in the BMS.read_current_sensor() function, when current is read.
       break;
+    default: //idle state
+    //nothing to do
+    break;
   }
-
-  //BMS.monitor_all_cell_groups_voltage_and_temp(CAN_manager); <-This will have to be copied to the switch statement above
 
   //send Standard traction pack message onto the CAN bus
   BMS.send_stpm(CAN_manager, CAN_BUS);
+
+  unsigned long current_time = millis();
+  if(current_time - BMS.can_msg_time_track > 10000) //if last msg from charger was more than 10 seconds ago
+  {
+    BMS.set_battery_state(idle); //go back to idle state
+  }
 
   ++loop_number;
   delay(1000);

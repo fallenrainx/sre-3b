@@ -62,7 +62,18 @@ void CAN_manager_singleton::charger_to_BMS_message_receive(MCP_CAN& CAN_BUS)
 {
   if (CAN_BUS.checkReceive()) //if the data is available
   {
-    CAN_BUS.readMsgBuf(&(ChargerToBms_message.message_id), &(ChargerToBms_message.data_length_byte), ChargerToBms_message.data.dword);
+    uint32_t temp_mid = 0;
+    uint8_t temp_data_length = 0;
+    uint8_t temp_dword[8] = {0};
+
+    //CAN_BUS.readMsgBuf(&(ChargerToBms_message.message_id), &(ChargerToBms_message.data_length_byte), ChargerToBms_message.data.dword);
+    CAN_BUS.readMsgBuf(&temp_mid, &temp_data_length, temp_dword);
+    if (temp_mid == CHARGER_MID) //store into struct only if msg id matches
+    {
+      ChargerToBms_message.message_id = temp_mid;
+      ChargerToBms_message.data_length_byte = temp_data_length;
+      memcpy(ChargerToBms_message.data.dword, temp_dword, 8);
+    }
   }
 }
 

@@ -15,6 +15,11 @@
 #define BSPD_DAC_5321_ADDRESS 0xC
 #define CURRENT_SENSOR_2946_ADDRESS 0xDE
 
+//pins
+#define CAN_TRANSCEIVER_PIN 9
+// TODO: #define DAC_PIN
+#define BMS_FAULT_PIN 6
+
 //Individual cell specifications (from Hg2 data sheet)
 #define CELL_OVER_VOLTAGE_THRESHOLD_V 4.16
 #define CELL_UNDER_VOLTAGE_THRESHOLD_V 2.6
@@ -35,7 +40,7 @@
 //#define DATALOG_DISABLED 0
 
 //setup variables and constants needed for the linduino 6811 APIs, created by LT
-const uint8_t TOTAL_IC = 1;//!<number of ICs in the daisy chain, 8 in our case
+const uint8_t TOTAL_IC = 8;//!<number of ICs in the daisy chain, 8 in our case
 //ADC Command Configurations
 const uint8_t ADC_OPT = ADC_OPT_DISABLED; // See LTC6811_daisy.h for Options
 const uint8_t ADC_CONVERSION_MODE = MD_7KHZ_3KHZ;//MD_7KHZ_3KHZ; //MD_26HZ_2KHZ;//MD_7KHZ_3KHZ; // See LTC6811_daisy.h for Options
@@ -58,10 +63,6 @@ const uint8_t CELL_CH_TO_CONVERT = CELL_CH_ALL; // See LTC6811_daisy.h for Optio
 //const uint8_t MEASURE_STAT = DISABLED; //This is ENABLED or DISABLED
 //const uint8_t PRINT_PEC = DISABLED; //This is ENABLED or DISABLED
 
-// CAN Message IDs
- #define BSPD_ON_OFF_MID 0x520
- #define BSPD_SET_CURRENT_MID 0x521
-
 //This struct contains the voltage information and over-voltage flag for each cell group
 /*typedef struct
 {
@@ -79,6 +80,7 @@ typedef enum
 	charging = 1, //this means battery is off the car for charging
   regening = 2, //this means the battery is being charged by the regen process
   testing = 3, //this means the battery is in testing BPSD
+  idle = 4 //idle state
 }battery_state;
 
 //standard traction pack message for the VCU

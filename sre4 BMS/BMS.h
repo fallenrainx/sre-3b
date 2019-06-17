@@ -65,12 +65,7 @@ void set_BSPD_testing_current(uint8_t buffer[8]);
   //float get_individual_cell_group_temp(int module_number, int cell_group_number); //number start @ 0
   //void print_all_cell_groups_voltage_and_temp();
 
-  /*this function should parse through all cell group voltages and flag
-  ones with voltage at 4.1V. As soon as any cell group hits 4.1V,
-  charging will be slowed to 50mA*8 (end current). Charging will stop when any
-  cell group hits 4.2V. This function should also parse through all cell group temperatures and flag
-  ones with temperature equal or exceeding the temperature threshold stated.
-  charging/discharging will stop once the flag is set */
+//this function is no longer in use. state machine in the .ino file should over take it
   void monitor_all_cell_groups_voltage_and_temp(CAN_manager_singleton& CAN_manager);
 
   /* ltc2946 current monitor functions*/
@@ -81,6 +76,7 @@ void set_BSPD_testing_current(uint8_t buffer[8]);
 
   //standard traction pack message to communicate with the VCU
   standard_traction_pack_message stpm; //how to initialize all to 0?
+  unsigned long can_msg_time_track;
 
 private:
   // variables related to singleton object

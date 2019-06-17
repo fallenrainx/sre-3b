@@ -23,7 +23,8 @@ BMS_singleton::BMS_singleton()
   charger_flags = 0;
 
   stpm = {0};
-  current_state_of_battery = discharging; //initialize to idle state at the beginning of the program
+  can_msg_time_track = 0;
+  current_state_of_battery = idle; //initialize to idle state at the beginning of the program
 
   //functions needed for the 6811
   //change is made in LTC681x.h to change gpio 3 to pull_down enabled (for address translator)
@@ -68,7 +69,7 @@ void BMS_singleton::read_CAN_bus(CAN_manager_singleton& CAN_manager, MCP_CAN& CA
     }
     else if (msg_length == 1 && buffer[0] == 0x0) //bspd testing off
     {
-      set_battery_state(discharging); //TODO: is this right?
+      set_battery_state(idle);
       //TODO: flip the gpio on BMS to high to disable DAC pin
       //DigitalWrite(CSPIN, HIGH);
     }
@@ -81,9 +82,15 @@ void BMS_singleton::read_CAN_bus(CAN_manager_singleton& CAN_manager, MCP_CAN& CA
       }
     break;
 
-    case CHARGER_ADDRESS:
+    case CHARGER_MID:
     //charger address detected, therefore state is charging
       set_battery_state(charging);
+      can_msg_time_track = millis(); //store current time to time tracking variable
+    break;
+
+    case RTD_MID:
+      set_battery_state(discharging); //go to discharging state
+    break;
     default:
     //some message that BMS doesn't care about
     break;
@@ -93,7 +100,7 @@ void BMS_singleton::read_CAN_bus(CAN_manager_singleton& CAN_manager, MCP_CAN& CA
 void BMS_singleton::set_BSPD_testing_current(uint8_t buffer[8])
 {
   float testing_current = buffer[0] / 10.0;
-  float DAC_voltage = testing_current * 0.15;
+  float DAC_voltage = testing_current * 0.15; //TODO: this equation needs to be checked
   //controlling for allowable range of DAC (0 - 4.5V)
   if(DAC_voltage < 0) DAC_voltage = 0;
   if(DAC_voltage > 4.5) DAC_voltage = 4.5;
@@ -170,8 +177,15 @@ void BMS_singleton::read_current_sensor()
   write_repeat_read_i2c(CURRENT_SENSOR_2946_ADDRESS, 0x6, 1, power_value_MSB1);
   write_repeat_read_i2c(CURRENT_SENSOR_2946_ADDRESS, 0x7, 1, power_value_LSB);
   uint32_t power_value = ((power_value_MSB2 & 0xff) << 16) | ((power_value_MSB1 & 0xff) << 8) | (power_value_LSB & 0xff);
-  stpm.battery_power = power_value;
+  if(power_value & 0x800000) //if the MSB of the value is 1, it is negative
+  {
+    stpm.battery_power = power_value - 16777216; //2 ^ 24 = 16777216. This is to convert unsigned to negative
+  }
+  else
+    stpm.battery_power = power_value;
 
+  Serial.print(F("power of battery: "));
+  Serial.println(stpm.battery_power);
   //read ADC vin register (2 bytes) (address 1Eh to 1Fh)
   uint32_t vin_voltage_MSB = 0;
   uint32_t vin_voltage_LSB = 0;
@@ -182,6 +196,19 @@ void BMS_singleton::read_current_sensor()
   //calculate current from power and voltage (I = P / V)
   float current = power_value * 1.0 / vin_voltage;
   stpm.total_current = current;
+  if(power_value & 0x800000) //if the MSB of the value is 1, it is negative
+  {
+    stpm.total_current = current - 65536; //2 ^ 16 = 65536. This is to convert unsigned to negative
+    set_battery_state(regening); //since current is negative, it is regening
+  }
+  else
+  {
+    stpm.total_current = current;
+    set_battery_state(discharging); //current is positive, discharging state
+  }
+
+  Serial.print(F("current of battery: "));
+  Serial.println(stpm.total_current);
 }
 
 void BMS_singleton::read_from_charger(CAN_manager_singleton& CAN_manager)
@@ -467,6 +494,7 @@ void BMS_singleton::temp_fill_COMM_reg(uint8_t current_ic, uint8_t slave_address
   bms_ic[current_ic].com.tx_data[5] = 0xf9;
 }
 
+//this function is no longer in use. state machine in the .ino file should over take it
 void BMS_singleton::monitor_all_cell_groups_voltage_and_temp(CAN_manager_singleton& CAN_manager)
 {
   //2.6 low side cutoff for voltage. 4.167 - high side

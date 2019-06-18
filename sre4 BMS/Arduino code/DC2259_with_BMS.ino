@@ -55,8 +55,10 @@ void setup()
   //BMS.set_battery_state(charging);
 
   //setting configuration register for 6811. Somehow when this is inside the bms class it freezes the whole program
+  digitalWrite(ISO_CS_PIN, LOW); //turn on 6820 cs
   wakeup_sleep(TOTAL_IC);
   LTC6811_wrcfg(TOTAL_IC, BMS.bms_ic);
+  digitalWrite(ISO_CS_PIN, HIGH); //turn off 6820 cs
   digitalWrite(BMS_FAULT_PIN, HIGH); //disable BMS fault pin
 }
 

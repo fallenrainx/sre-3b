@@ -19,6 +19,8 @@
 #define CAN_TRANSCEIVER_PIN 9
 // TODO: #define DAC_PIN
 #define BMS_FAULT_PIN 6
+#define CHARGING_ACTIVE_PIN 5
+#define ISO_CS_PIN 7
 
 //Individual cell specifications (from Hg2 data sheet)
 #define CELL_OVER_VOLTAGE_THRESHOLD_V 4.16

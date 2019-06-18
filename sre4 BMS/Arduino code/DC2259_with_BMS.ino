@@ -57,6 +57,7 @@ void setup()
   //setting configuration register for 6811. Somehow when this is inside the bms class it freezes the whole program
   wakeup_sleep(TOTAL_IC);
   LTC6811_wrcfg(TOTAL_IC, BMS.bms_ic);
+  digitalWrite(BMS_FAULT_PIN, HIGH); //disable BMS fault pin
 }
 
 void loop()
@@ -77,7 +78,7 @@ void loop()
   }
    if(BMS.stpm.BMS_fault_flag) //if BMS has a fault
   {
-    //digitalWrite(BMS_FAULT_PIN, HIGH/LOW); //TODO: active low or high?
+    digitalWrite(BMS_FAULT_PIN, LOW); //TODO: active low or high?
     BMS.set_battery_state(idle); //if fault occurs, do not do anything anymore
   }
 

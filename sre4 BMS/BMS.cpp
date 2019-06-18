@@ -28,12 +28,14 @@ BMS_singleton::BMS_singleton()
 
   //functions needed for the 6811
   //change is made in LTC681x.h to change gpio 3 to pull_down enabled (for address translator)
+  digitalWrite(ISO_CS_PIN, LOW); //turn on 6820 cs
   LTC681x_init_cfg(TOTAL_IC, bms_ic);
   LTC6811_reset_crc_count(TOTAL_IC,bms_ic);
   LTC6811_init_reg_limits(TOTAL_IC,bms_ic);
   //wakeup_sleep(TOTAL_IC);
   //LTC6811_wrcfg(TOTAL_IC,bms_ic);
   //configure_ltc2946();
+  digitalWrite(ISO_CS_PIN, HIGH); //turn off 6820 cs
 }
 
 void BMS_singleton::send_stpm(CAN_manager_singleton& CAN_manager, MCP_CAN& CAN_BUS)
@@ -65,13 +67,13 @@ void BMS_singleton::read_CAN_bus(CAN_manager_singleton& CAN_manager, MCP_CAN& CA
     {
       set_battery_state(testing);
       //TODO: flip the gpio on BMS to low for cs for DAC pin
-      //DigitalWrite(CSPIN, LOW);
+      //DigitalWrite(DAC_PIN, LOW);
     }
     else if (msg_length == 1 && buffer[0] == 0x0) //bspd testing off
     {
       set_battery_state(idle);
       //TODO: flip the gpio on BMS to high to disable DAC pin
-      //DigitalWrite(CSPIN, HIGH);
+      //DigitalWrite(DAC_PIN, HIGH);
     }
     break;
 
@@ -240,10 +242,12 @@ void BMS_singleton::write_to_charger(CAN_manager_singleton& CAN_manager, float m
 void BMS_singleton::disable_charger(CAN_manager_singleton& CAN_manager)
 {
   CAN_manager.BMS_to_charger_disable_charger();
+  digitalWrite(CHARGING_ACTIVE_PIN, HIGH);
 }
 void BMS_singleton::enable_charger(CAN_manager_singleton& CAN_manager)
 {
   CAN_manager.BMS_to_charger_enable_charger();
+  digitalWrite(CHARGING_ACTIVE_PIN, LOW);
 }
 
 float BMS_singleton::get_charger_output_voltage()
@@ -310,6 +314,7 @@ battery_state BMS_singleton::get_battery_state()
 //void BMS_singleton::read_cell_groups_voltage(cell_asic (&bms_ic)[TOTAL_IC])
 void BMS_singleton::read_all_cell_groups_voltage()
 {
+  digitalWrite(ISO_CS_PIN, LOW); //turn on 6820 cs
   wakeup_sleep(TOTAL_IC);
   LTC6811_adcv(ADC_CONVERSION_MODE,ADC_DCP,CELL_CH_TO_CONVERT); // Start Cell ADC Measurement
   LTC6811_pollAdc(); //this function will block operation until ADC completes
@@ -379,6 +384,7 @@ void BMS_singleton::read_all_cell_groups_voltage()
       }//for
       Serial.println();
     }//for
+    digitalWrite(ISO_CS_PIN, HIGH); //turn off 6820 cs
       Serial.println();
       if(stpm.total_voltage > TOTAL_BATTERY_VOLTAGE - 5 && is_any_cell_not_read == 0) //TODO: is this ok?
       {
@@ -413,6 +419,7 @@ void BMS_singleton::read_all_cell_groups_temp()
 //read temperature of just one node in each IC
 void BMS_singleton::read_cell_groups_temp(int cell_group_number)
 {
+  digitalWrite(ISO_CS_PIN, LOW); //turn on 6820 cs
   uint8_t slave_address = ((TEMP_SENSORS_BASE_ADDRESS + cell_group_number) << 1) | 0x1; //decimal.  0x14(hex),  0010100(binary), according to Alex
   for (int current_ic= 0; current_ic < TOTAL_IC; current_ic++)
     {
@@ -462,6 +469,7 @@ void BMS_singleton::read_cell_groups_temp(int cell_group_number)
         stpm.battery_temp_too_high_for_discharging_flag = 1;
       }
     }//for current ic
+    digitalWrite(ISO_CS_PIN, HIGH); //turn off 6820 cs
 }
 
 float BMS_singleton::temp_conversion(uint16_t comm_reading)
